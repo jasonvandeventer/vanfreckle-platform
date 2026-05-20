@@ -159,7 +159,7 @@ Four Applications exist in the cluster. All defined in `k8s/argocd/`.
 
 | Application | Source path | Sync Status | Health | Notes |
 |-------------|-------------|-------------|--------|-------|
-| platform-root | `k8s/argocd/root-app.yaml` | Synced | Progressing | App-of-apps; cosmetic Progressing wedge from known ArgoCD 3.3.6 health rollup bug, resolved by upgrade to 3.3.10 |
+| platform-root | `k8s/argocd/root-app.yaml` | Synced | Healthy | App-of-apps. Previously stuck `Progressing` — resolved 2026-05-19 by clearing a stale finalizer on the `longhorn` Application (see docs/decisions/argocd-repo-hygiene.md) |
 | longhorn | `k8s/argocd/apps/longhorn.yaml` | Synced | Healthy | Manages Longhorn install |
 | mana-archive | `k8s/argocd/apps/mana-archive.yaml` | Synced | Healthy | Manages Mana Archive workload via Kustomize |
 | platform | `k8s/argocd/apps/platform.yaml` | Synced | Healthy | Manages `k8s/platform/` — currently the `local-path` StorageClass override |

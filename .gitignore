@@ -1,13 +1,11 @@
-
-# Vault-symlinked project memory (CLAUDE.md, current-status.md point outside repo).
-# ArgoCD's repo-server rejects out-of-bounds symlinks; tracking them blocks all sync.
-CLAUDE.md
-current-status.md
-
-# AI-context / platform-memory docs — canonical home is ~/lab/ai-context/, not this repo
+# AI-context / platform-memory docs — canonical home is ~/lab/ai-context/, not this repo.
+# ArgoCD repo-server rejects out-of-bounds symlinks; tracking these blocks all sync.
 CLAUDE.md
 current-status.md
 backup-strategy.md
 cluster-layout.md
 observability.md
 roadmap.md
+
+# Claude Code local settings
+.claude/
