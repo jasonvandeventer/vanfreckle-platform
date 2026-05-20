@@ -1,6 +1,7 @@
 # Mana Archive Platform Inventory 
 
 **Generated:** 2026-05-16
+**Last Updated:** 2026-05-19 (ArgoCD repo hygiene fixes — see docs/decisions/argocd-repo-hygiene.md)
 **Cluster:** K3s on Rocky Linux VMs (Unraid host)
 **Repo:** https://github.com/jasonvandeventer/mana-archive-platform
 **Author:** jason
@@ -154,13 +155,15 @@ Nginx Proxy Manager is also in use for some services per `current-status.md`, bu
 
 ## ArgoCD Applications
 
-Three Applications exist in the cluster. All defined in `k8s/argocd/`.
+Four Applications exist in the cluster. All defined in `k8s/argocd/`.
 
 | Application | Source path | Sync Status | Health | Notes |
 |-------------|-------------|-------------|--------|-------|
 | platform-root | `k8s/argocd/root-app.yaml` | Synced | Progressing | App-of-apps; cosmetic Progressing wedge from known ArgoCD 3.3.6 health rollup bug, resolved by upgrade to 3.3.10 |
 | longhorn | `k8s/argocd/apps/longhorn.yaml` | Synced | Healthy | Manages Longhorn install |
 | mana-archive | `k8s/argocd/apps/mana-archive.yaml` | Synced | Healthy | Manages Mana Archive workload via Kustomize |
+| platform | `k8s/argocd/apps/platform.yaml` | Synced | Healthy | Manages `k8s/platform/` — currently the `local-path` StorageClass override |
+
 
 `k8s/argocd/image-updaters/mana-archive.yaml` exists and is presumably an Image Updater configuration for the mana-archive Application, but the Image Updater controller itself is not managed by any Application — see Drift Summary.
 
@@ -180,7 +183,11 @@ Components running in the cluster that ArgoCD does not manage. These are the aud
 
 **ArgoCD Image Updater (24d)** — Installed manually. Repo contains `helm/image-updater-values.yaml` (presumably the values used to install) but no ArgoCD Application manages the controller. Image Updater is functioning normally; risk is bootstrap-tier, not operational.
 
-**local-path StorageClass annotation patch (2026-05-16)** — During audit, two StorageClasses (`local-path` and `longhorn`) were both annotated as default, which violates the documented platform rule that Longhorn is default. The `local-path` annotation was removed via `kubectl patch`, but the change is not in Git. A k3s upgrade or reinstall would revert it.
+**local-path StorageClass annotation patch — RESOLVED 2026-05-19.** During the 2026-05-16 audit, two StorageClasses (`local-path` and `longhorn`) were both annotated as default. The `local-path` annotation was removed via `kubectl patch`, then reconciled into Git via the `platform` Application (`k8s/platform/storage/local-path-storageclass.yaml`). ArgoCD selfHeal now maintains the correct annotation. See docs/decisions/local-path-default-class-fix.md.
+
+### Out-of-bounds symlinks in repo root — RESOLVED 2026-05-19
+
+Six AI-context Markdown files were symlinked into the repo root pointing to `~/lab/ai-context/`. ArgoCD repo-server rejects out-of-bounds symlinks and failed manifest generation for the whole repo, breaking all Applications. Files removed from the repo and added to `.gitignore`. See docs/decisions/argocd-repo-hygiene.md.
 
 ### Validation manifests in repo that should not be reapplied
 
@@ -203,7 +210,8 @@ The following changes were made directly to cluster state and are not yet reflec
 | Removed `is-default-class: true` annotation from `local-path` StorageClass | ~14:00 CDT | Both `local-path` and `longhorn` were marked default; correctness fix | Add manifest to Git that enforces `local-path` as non-default OR disable bundled local-path in k3s config |
 | Deleted `lh-writer` pod, `lh-test-pvc`, and `lh-restore-1` volume from `default` namespace | ~13:00 CDT | Validation leftovers stuck in Terminating after outage | None — these were one-shot artifacts that should have been deleted long ago |
 | Deleted `longhorn-uninstall` failed Job | ~12:00 CDT | Job fired as Helm pre-delete hook during chaotic outage recovery, blocked by Longhorn safety flag; no longer needed | None |
-| Deleted and recreated `argocd-repo-server` pod | ~19:00 CDT | Init container stuck in CrashLoopBackOff (`ln: Already exists`) due to symlink surviving across pod restarts in EmptyDir | None — fresh pod ran cleanly |
+| Deleted and recreated `argocd-repo-server` pod | 2026-05-16 ~19:00 CDT | Init container stuck in CrashLoopBackOff (`ln: Already exists`) due to symlink surviving across pod restarts in EmptyDir | None — fresh pod ran cleanly |
+| Removed stale finalizers from `longhorn` ArgoCD Application | 2026-05-19 | Application stuck with a build-day `deletionTimestamp` and stale `pre-delete` finalizers; showed `Deleting` badge and poisoned `platform-root` health rollup | None — `platform-root` recreated the Application cleanly from Git; documented in docs/decisions/argocd-repo-hygiene.md |
 
 ## Cleanup Backlog (Phase 2)
 
@@ -255,8 +263,8 @@ Items identified during the audit that require deliberate work to resolve. Not b
 ## Related Documents
 
 - `CLAUDE.md` — Platform context and rules (authoritative on stack and posture)
-- `current-status.md` — High-level status; **this inventory supersedes its observability section** (which describes the stack as "not yet built" when it has been running for 34 days)
 - `ROADMAP.md` — Forward-looking phase plan
+- `current-status.md` — High-level status; **this inventory supersedes it** where they conflict (notably the observability section, which describes the stack as "not yet built" when it has been running 34+ days)
 - `README.md` — Repo overview
 - `docs/bootstrap.md` — **Does not yet exist.** Should document how the platform was originally built, including ArgoCD install method and any out-of-band k3s configuration.
 - `docs/recovery.md` — **Does not yet exist.** Should capture the post-outage playbook from today's incident.
