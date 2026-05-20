@@ -183,7 +183,7 @@ Components running in the cluster that ArgoCD does not manage. These are the aud
 
 **ArgoCD Image Updater (24d)** — Installed manually. Repo contains `helm/image-updater-values.yaml` (presumably the values used to install) but no ArgoCD Application manages the controller. Image Updater is functioning normally; risk is bootstrap-tier, not operational.
 
-**local-path StorageClass annotation patch — RESOLVED 2026-05-19.** During the 2026-05-16 audit, two StorageClasses (`local-path` and `longhorn`) were both annotated as default. The `local-path` annotation was removed via `kubectl patch`, then reconciled into Git via the `platform` Application (`k8s/platform/storage/local-path-storageclass.yaml`). ArgoCD selfHeal now maintains the correct annotation. See docs/decisions/local-path-default-class-fix.md.
+**local-path StorageClass annotation patch — RESOLVED 2026-05-20.** During the 2026-05-16 audit, two StorageClasses (`local-path` and `longhorn`) were both annotated as default. The `local-path` annotation was removed via `kubectl patch`. A first reconciliation attempt on 2026-05-19 added the `platform` Application and the manifest at `k8s/platform/storage/local-path-storageclass.yaml`, but the Application's source path (`k8s/platform`, non-recursive) did not reach the subdirectory — it managed zero resources, so its `Synced / Healthy` state was vacuous. Genuine resolution came 2026-05-20 when a `kustomization.yaml` was added at `k8s/platform/` pulling the storage manifest in; ArgoCD then actually managed the StorageClass and selfHeal was verified. See docs/decisions/local-path-default-class-fix.md.
 
 ### Out-of-bounds symlinks in repo root — RESOLVED 2026-05-19
 

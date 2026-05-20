@@ -56,6 +56,7 @@ Remove the stale finalizers from the `longhorn` Application via `kubectl patch`,
 
 1. **The deployment repository contains deployment artifacts only.** AI-context and platform-memory documents live in `~/lab/ai-context/`, never symlinked into the deploy repo. Symlinks that resolve outside the repo break ArgoCD repo-server for the entire repository.
 2. **Live `kubectl` fixes must be captured.** The finalizer cleanup was a direct cluster mutation. This ADR is its record. Recurring pattern in this project: work gets done, capture gets skipped — every live change needs a written home.
+3. An ArgoCD Application showing `Synced / Healthy` does not guarantee it is managing the resources you expect. An Application whose source path contains no manifests (e.g. a non-recursive directory path when the manifests live in a subdirectory) manages zero resources and is therefore vacuously `Synced / Healthy`. Always verify an Application's managed resources with `kubectl -n argocd get application <name> -o jsonpath='{range .status.resources[*]}{.kind}/{.name}{"\n"}{end}'`, not just its sync/health badge.
 
 ## Follow-ups
 
