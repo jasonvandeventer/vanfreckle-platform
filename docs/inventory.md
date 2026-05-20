@@ -46,7 +46,7 @@ Standard ArgoCD install plus Image Updater. Not currently managed by ArgoCD (boo
 
 - **Deployments:** argocd-applicationset-controller, argocd-dex-server, argocd-image-updater-controller (24d, ~11d after initial ArgoCD install), argocd-notifications-controller, argocd-redis, argocd-repo-server, argocd-server
 - **StatefulSets:** argocd-application-controller
-- **Version:** ArgoCD v3.3.6 (upgrade to 3.3.10 pending — fixes platform-root cosmetic health rollup bug)
+- **Version:** ArgoCD v3.3.6 (upgrade to 3.3.10 pending — routine version hygiene; the `platform-root` Progressing symptom previously attributed to a 3.3.6 health-rollup bug was actually a stale `longhorn` Application finalizer, resolved 2026-05-19 — see docs/decisions/argocd-repo-hygiene.md)
 
 ### default (37d)
 
