@@ -3,3 +3,11 @@
 # ArgoCD's repo-server rejects out-of-bounds symlinks; tracking them blocks all sync.
 CLAUDE.md
 current-status.md
+
+# AI-context / platform-memory docs — canonical home is ~/lab/ai-context/, not this repo
+CLAUDE.md
+current-status.md
+backup-strategy.md
+cluster-layout.md
+observability.md
+roadmap.md
