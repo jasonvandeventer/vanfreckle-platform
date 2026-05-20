@@ -1,0 +1,13 @@
+# Override of the k3s-bundled local-path StorageClass.
+# Removes default-class annotation so Longhorn is the sole default.
+# See docs/decisions/local-path-default-class-fix.md
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: local-path
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "false"
+provisioner: rancher.io/local-path
+reclaimPolicy: Delete
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: false
