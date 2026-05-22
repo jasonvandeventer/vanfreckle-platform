@@ -42,6 +42,17 @@ spec:
                 secretKeyRef:
                   name: mana-archive-secrets
                   key: SESSION_SECRET_KEY
+            # v3.27.14 — Resend API key for outbound /forgot-password
+            # emails. Wired from the same mana-archive-secrets Secret as
+            # SESSION_SECRET_KEY; the key value itself is created
+            # out-of-band via kubectl and never committed. The app's
+            # startup check in app/main.py refuses to boot in production
+            # without this set (DEV_MODE=true bypasses for local dev).
+            - name: RESEND_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: mana-archive-secrets
+                  key: RESEND_API_KEY
           ports:
             - containerPort: 8000
           volumeMounts:
