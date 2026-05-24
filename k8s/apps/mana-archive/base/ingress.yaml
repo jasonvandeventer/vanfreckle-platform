@@ -1,0 +1,28 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: mana-archive
+  namespace: mana-archive
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: mana.vanfreckle.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: mana-archive
+                port:
+                  number: 80
+    - host: cartarch.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: mana-archive
+                port:
+                  number: 80
