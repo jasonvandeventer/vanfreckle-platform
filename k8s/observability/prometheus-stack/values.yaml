@@ -12,14 +12,26 @@ prometheus:
     # Durable TSDB on Longhorn. The manual install used emptyDir, so metrics were
     # wiped on every pod restart (4x already). This is the actual latent fix --
     # without it, the redeploy would faithfully reproduce the original problem.
+    #
+    # Sizing (2026-05-27): the cluster's Longhorn nodes are small (~34G disks on
+    # 40G VMs) and near full -- a 20Gi x2-replica volume could not be scheduled.
+    # 8Gi is generous for 10d of 4-node metrics; 1 replica is the honest count
+    # for a non-backed-up, re-scrapeable monitoring TSDB. The replica-count
+    # annotation is a PER-VOLUME Longhorn override -- it does NOT change the
+    # cluster-wide `longhorn` StorageClass default for other apps.
+    # Revisit once the VM disks are expanded (separate roadmap item); Longhorn
+    # supports online volume expansion, so 8Gi can be grown later in place.
     storageSpec:
       volumeClaimTemplate:
+        metadata:
+          annotations:
+            longhorn.io/replica-count: "1"
         spec:
           storageClassName: longhorn
           accessModes: ["ReadWriteOnce"]
           resources:
             requests:
-              storage: 20Gi   # generous for a 4-node homelab at 10d / 30s scrape; adjust freely
+              storage: 8Gi
 
 grafana:
   # Durable Grafana DB (dashboards, prefs, users) on Longhorn -- also emptyDir before.
