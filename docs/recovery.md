@@ -34,3 +34,33 @@ kubectl get pvc -A
 kubectl get pods -A | grep -vE 'Running|Completed'
 ```
 All of: nodes Ready, Longhorn pods Running, volumes attached/healthy or detached (not faulted), ArgoCD pods Running, Applications Synced, PVCs Bound, last command returns only header.
+
+## Bootstrap secrets (not in Git)
+
+Some Kubernetes Secrets are deliberately kept out of the GitOps repo — no
+plaintext credentials in Git — and must be recreated by hand on a cluster
+rebuild. Until a secrets manager is adopted (see `roadmap.md`, Near-Term
+item 5), this list is the record of what those are and how to recreate them.
+
+### `grafana-admin-credentials`
+
+- **Namespace:** `observability`
+- **Consumed by:** Grafana, via `grafana.admin.existingSecret` in
+  `k8s/observability/prometheus-stack/values.yaml`.
+- **Symptom if missing:** the Grafana pod fails to start with
+  `CreateContainerConfigError`. The rest of the observability stack is
+  unaffected.
+- **Recreate:**
+
+  ```
+  kubectl create secret generic grafana-admin-credentials -n observability \
+    --from-literal=admin-user=admin \
+    --from-literal=admin-password='<password>'
+  ```
+
+  The data keys (`admin-user`, `admin-password`) must match `userKey` and
+  `passwordKey` in the values file. Once the Secret exists, Grafana recovers on
+  its own — `kubectl` retries `CreateContainerConfigError` automatically; no pod
+  delete is required.
+- **Created:** 2026-05-27, during the observability GitOps redeploy. See
+  `docs/runbooks/observability-redeploy.md`.
