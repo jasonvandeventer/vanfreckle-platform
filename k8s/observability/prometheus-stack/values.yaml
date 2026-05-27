@@ -1,0 +1,40 @@
+# Helm values for kube-prometheus-stack.
+# Consumed by the `observability` ArgoCD Application via a $values multi-source ref.
+# Repo path: k8s/observability/prometheus-stack/values.yaml
+#
+# The manually-installed release ran with NO values at all (`helm get values` -> null).
+# This file deliberately sets only what was MISSING -- durable storage and a managed
+# admin credential. Everything else stays at chart defaults; no added complexity.
+
+prometheus:
+  prometheusSpec:
+    retention: 10d
+    # Durable TSDB on Longhorn. The manual install used emptyDir, so metrics were
+    # wiped on every pod restart (4x already). This is the actual latent fix --
+    # without it, the redeploy would faithfully reproduce the original problem.
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: longhorn
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 20Gi   # generous for a 4-node homelab at 10d / 30s scrape; adjust freely
+
+grafana:
+  # Durable Grafana DB (dashboards, prefs, users) on Longhorn -- also emptyDir before.
+  persistence:
+    enabled: true
+    type: pvc
+    storageClassName: longhorn
+    accessModes: ["ReadWriteOnce"]
+    size: 5Gi
+  # Admin credential read from a cluster-side Secret that is NOT committed to Git.
+  # Create it once (see docs/recovery.md); the password value never enters the repo.
+  admin:
+    existingSecret: grafana-admin-credentials
+    userKey: admin-user
+    passwordKey: admin-password
+
+# Alertmanager is left on the chart-default emptyDir deliberately -- persisted
+# silences are low-value for a homelab. Add a storageSpec later if that changes.

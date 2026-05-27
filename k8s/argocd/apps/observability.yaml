@@ -1,0 +1,55 @@
+# Repo path: k8s/argocd/apps/observability.yaml
+#
+# Multi-source ArgoCD Application for the observability stack.
+#   source 1 — the kube-prometheus-stack Helm chart, pinned to 83.4.0
+#              (the version `helm list` reported; redeploy, not upgrade)
+#   source 2 — THIS repo, ref'd as $values, supplying the values file at
+#              k8s/observability/prometheus-stack/values.yaml
+#
+# Layout rationale:
+#   - The Application manifest lives in k8s/argocd/apps/ because platform-root
+#     is a NON-RECURSIVE Directory source over that path — a manifest anywhere
+#     else would never be picked up. Siblings: longhorn, mana-archive, platform.
+#   - The values.yaml stays under k8s/observability/prometheus-stack/ — the
+#     home its own header declares — reached via the $values ref below.
+#   - The namespace is declared at k8s/observability/namespace.yaml and synced
+#     by this Application; hence NO CreateNamespace=true syncOption.
+#
+# Committing this file is what creates the Application — platform-root adopts
+# it on next sync. Do not `kubectl apply` it by hand.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: observability
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io   # cascade delete, consistent with other Apps
+spec:
+  project: default                              # same as platform-root / longhorn
+
+  sources:
+    # --- source 1: the chart ---
+    - repoURL: https://prometheus-community.github.io/helm-charts
+      chart: kube-prometheus-stack
+      targetRevision: "83.4.0"                  # pinned — installed chart version
+      helm:
+        releaseName: kube-prometheus-stack
+        valueFiles:
+          - $values/k8s/observability/prometheus-stack/values.yaml
+
+    # --- source 2: this repo, providing the values file ---
+    - repoURL: https://github.com/jasonvandeventer/mana-archive-platform.git
+      targetRevision: HEAD
+      ref: values
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true                            # consistent with the platform Application
+    syncOptions:
+      - ServerSideApply=true                    # required — kube-prometheus-stack CRDs
+                                                # exceed the client-side apply annotation limit

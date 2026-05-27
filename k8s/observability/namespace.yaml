@@ -1,0 +1,14 @@
+# Repo path: k8s/observability/namespace.yaml
+#
+# The observability namespace, declared explicitly in Git rather than created
+# implicitly by ArgoCD (CreateNamespace=true). Matches the platform's
+# explicit-in-Git philosophy — the namespace is a managed resource like any
+# other, and shows up in the Application's resource tree.
+#
+# This is a fresh manifest. An earlier namespace.yaml existed under this path
+# in commit 7373aba and was removed in a later commit; it is not being
+# "restored" — it is re-authored deliberately as part of this redeploy.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: observability
