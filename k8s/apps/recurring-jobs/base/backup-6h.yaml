@@ -1,0 +1,16 @@
+apiVersion: longhorn.io/v1beta2
+kind: RecurringJob
+metadata:
+  name: backup-6h
+  namespace: longhorn-system
+spec:
+  name: backup-6h
+  task: backup
+  cron: "0 0/6 * * ?"
+  retain: 10
+  concurrency: 1
+  groups:
+    - default
+    - test
+  labels: {}
+  parameters: {}
