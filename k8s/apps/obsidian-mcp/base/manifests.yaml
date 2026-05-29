@@ -108,8 +108,6 @@ metadata:
   name: obsidian-mcp
   namespace: mcp
   annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.tls: "true"
 spec:
   rules:
     - host: obsidian-mcp.vanfreckle.com

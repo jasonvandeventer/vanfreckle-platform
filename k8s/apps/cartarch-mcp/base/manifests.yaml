@@ -119,8 +119,6 @@ metadata:
   name: cartarch-mcp
   namespace: mcp
   annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.tls: "true"
 spec:
   rules:
     - host: cartarch-mcp.vanfreckle.com
