@@ -1,0 +1,125 @@
+---
+# Namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: mcp
+---
+# PersistentVolume — NFS mount from Unraid
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: obsidian-vault-nfs
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadOnlyMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: manual
+  nfs:
+    server: 10.42.1.10
+    path: /mnt/user/syncthing/ai-context
+  mountOptions:
+    - vers=4
+    - soft
+---
+# PersistentVolumeClaim
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: obsidian-vault-nfs
+  namespace: mcp
+spec:
+  accessModes:
+    - ReadOnlyMany
+  storageClassName: manual
+  resources:
+    requests:
+      storage: 1Gi
+  volumeName: obsidian-vault-nfs
+---
+# Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: obsidian-mcp
+  namespace: mcp
+  annotations:
+    argocd-image-updater.argoproj.io/image-list: obsidian-mcp=ghcr.io/jasonvandeventer/obsidian-mcp
+    argocd-image-updater.argoproj.io/obsidian-mcp.update-strategy: semver
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: obsidian-mcp
+  template:
+    metadata:
+      labels:
+        app: obsidian-mcp
+    spec:
+      containers:
+        - name: obsidian-mcp
+          image: ghcr.io/jasonvandeventer/obsidian-mcp:v0.1.0
+          ports:
+            - containerPort: 8000
+          env:
+            - name: OBSIDIAN_VAULT_PATH
+              value: /vault
+          volumeMounts:
+            - name: vault
+              mountPath: /vault
+              readOnly: true
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+          readinessProbe:
+            httpGet:
+              path: /mcp/tools/list
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: vault
+          persistentVolumeClaim:
+            claimName: obsidian-vault-nfs
+            readOnly: true
+---
+# Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: obsidian-mcp
+  namespace: mcp
+spec:
+  selector:
+    app: obsidian-mcp
+  ports:
+    - port: 80
+      targetPort: 8000
+---
+# Ingress
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: obsidian-mcp
+  namespace: mcp
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+spec:
+  rules:
+    - host: obsidian-mcp.vanfreckle.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: obsidian-mcp
+                port:
+                  number: 80

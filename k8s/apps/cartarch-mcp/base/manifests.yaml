@@ -1,0 +1,136 @@
+---
+# ServiceAccount for cartarch-mcp
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cartarch-mcp
+  namespace: mcp
+---
+# Role in mana-archive namespace — read pods and logs only
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: cartarch-mcp-log-reader
+  namespace: mana-archive
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "pods/log"]
+    verbs: ["get", "list"]
+---
+# RoleBinding — binds the mcp ServiceAccount to the mana-archive Role
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: cartarch-mcp-log-reader
+  namespace: mana-archive
+subjects:
+  - kind: ServiceAccount
+    name: cartarch-mcp
+    namespace: mcp
+roleRef:
+  kind: Role
+  apiGroup: rbac.authorization.k8s.io
+  name: cartarch-mcp-log-reader
+---
+# Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cartarch-mcp
+  namespace: mcp
+  annotations:
+    argocd-image-updater.argoproj.io/image-list: cartarch-mcp=ghcr.io/jasonvandeventer/cartarch-mcp
+    argocd-image-updater.argoproj.io/cartarch-mcp.update-strategy: semver
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cartarch-mcp
+  template:
+    metadata:
+      labels:
+        app: cartarch-mcp
+    spec:
+      serviceAccountName: cartarch-mcp
+      containers:
+        - name: cartarch-mcp
+          image: ghcr.io/jasonvandeventer/cartarch-mcp:v0.1.0
+          ports:
+            - containerPort: 8000
+          env:
+            - name: CARTARCH_ENV
+              value: prod
+            - name: CARTARCH_PROD_API_URL
+              value: http://mana-archive.mana-archive.svc.cluster.local:80
+            - name: CARTARCH_DEV_API_URL
+              value: http://10.42.1.20:8000
+            - name: CARTARCH_ENABLE_MUTATIONS
+              value: "false"
+            - name: CARTARCH_POD_NAMESPACE
+              value: mana-archive
+            - name: CARTARCH_POD_LABEL
+              value: app=mana-archive
+            # DB_PATH only used if PVC is mounted — see commented volume below
+            - name: CARTARCH_DB_PATH
+              value: /data/cartarch.db
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+          readinessProbe:
+            httpGet:
+              path: /mcp/tools/list
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          # Uncomment to enable direct SQLite access via describe_schema and run_query.
+          # The PVC is RWO so this requires cartarch to be on a different node,
+          # OR Longhorn to support ROX on this volume (it does via longhorn-static).
+          # Leave commented until the Postgres migration lands.
+          # volumeMounts:
+          #   - name: cartarch-data
+          #     mountPath: /data
+          #     readOnly: true
+      # volumes:
+      #   - name: cartarch-data
+      #     persistentVolumeClaim:
+      #       claimName: mana-archive-data-longhorn
+      #       readOnly: true
+---
+# Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: cartarch-mcp
+  namespace: mcp
+spec:
+  selector:
+    app: cartarch-mcp
+  ports:
+    - port: 80
+      targetPort: 8000
+---
+# Ingress
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: cartarch-mcp
+  namespace: mcp
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+spec:
+  rules:
+    - host: cartarch-mcp.vanfreckle.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: cartarch-mcp
+                port:
+                  number: 80
