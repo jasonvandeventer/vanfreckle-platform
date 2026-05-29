@@ -1,149 +1,103 @@
-# Mana Archive Platform
+# vanfreckle-platform
 
-This repository contains the **GitOps source of truth** for the Mana Archive platform.
+The **GitOps source of truth** for the platform that runs [Cartarch](https://github.com/jasonvandeventer/cartarch) — a self-hosted Magic: The Gathering collection manager with paying users in sight. Every Kubernetes resource is declared here and reconciled by ArgoCD.
 
-It defines and manages all Kubernetes resources using ArgoCD.
+> Formerly `mana-archive-platform`. Renamed to `vanfreckle-platform` (deliberately generic — the cluster already hosts more than one workload). The app it runs is **Cartarch** (formerly "Mana Archive"); some in-cluster identifiers (`mana-archive` namespace, ArgoCD Application, image path) still carry the old name pending the app-side infrastructure rename near public launch.
 
 ---
 
 ## Purpose
 
-This repo represents the platform layer of the system:
+The platform layer of the system, kept separate from application code:
 
-- Kubernetes manifests
-- ArgoCD application definitions
-- Observability stack
-- Storage configuration
+- Kubernetes manifests (Kustomize)
+- ArgoCD Application definitions (app-of-apps)
+- Observability stack (kube-prometheus-stack)
+- Storage configuration (Longhorn) + scheduled snapshot/backup jobs
+- Secrets (Sealed Secrets) and release automation (Argo CD Image Updater)
+- MCP servers exposing the app and the docs vault to AI tooling
 
-It is intentionally separated from the application code.
-
-App repo:  
-https://github.com/jasonvandeventer/mana-archive
-
----
-
-## Architecture Overview
-
-The platform is built using:
-
-- K3s (lightweight Kubernetes)
-- ArgoCD (GitOps controller)
-- Longhorn (distributed storage)
-- Prometheus + Grafana + Loki (observability)
+**App repo:** https://github.com/jasonvandeventer/cartarch (the in-cluster image path, ArgoCD Application, and namespace are still `mana-archive` — separate rename items, coordinated near launch)
+**Docs/AI-context vault:** https://github.com/jasonvandeventer/cartarch-ai-context
 
 ---
 
-## GitOps Model
+## Architecture
 
-This repository uses an **app-of-apps** pattern:
-
-platform-root (ArgoCD)
-└── child applications
-    ├── mana-archive
-    ├── longhorn
-    ├── observability stack
-    └── other services
-
-### Key idea
-
-> Git is the source of truth.  
-> ArgoCD continuously reconciles cluster state to match this repo.
+- **K3s** v1.34.6 — four Rocky Linux 9.7 VMs on a single Unraid host (the named single-host SPOF)
+- **Argo CD** — GitOps controller; `selfHeal` + `prune` on every Application
+- **Longhorn** — distributed block storage (default StorageClass) + NFS backup target
+- **kube-prometheus-stack** — Prometheus / Grafana / Alertmanager
+- **Sealed Secrets** — encrypted-secret-as-Git-artifact (bitnami-labs controller)
+- **Cloudflare Tunnel → Traefik** — external entry for public hostnames
 
 ---
 
-## Repository Structure
+## GitOps model — app-of-apps
 
+`platform-root` (`k8s/argocd/root-app.yaml`) reconciles `k8s/argocd/apps/`, which defines every child Application:
+
+```
+platform-root
+├── platform          # cluster-scoped resources (local-path StorageClass override)
+├── longhorn          # storage
+├── mana-archive      # the Cartarch app (Deployment, Ingress, PVC)
+├── observability     # kube-prometheus-stack (multi-source Helm + repo values)
+├── recurring-jobs    # Longhorn snapshot-1h / backup-6h RecurringJobs
+├── sealed-secrets    # SealedSecret controller
+├── image-updater     # Argo CD Image Updater
+├── cartarch-mcp      # MCP: read-only app/DB/log introspection
+└── obsidian-mcp      # MCP: docs-vault access
+```
+
+> Git is the source of truth. ArgoCD continuously reconciles cluster state to match this repo — manual `kubectl` edits are reverted.
+
+---
+
+## Repository structure
+
+```
 k8s/
 ├── argocd/
-│   ├── root-app.yaml
-│   └── apps/
-│       ├── mana-archive.yaml
-│       ├── longhorn.yaml
-│       └── whoami.yaml
+│   ├── root-app.yaml              # the app-of-apps root
+│   ├── apps/                      # one Application manifest per child
+│   ├── image-updater/            # Image Updater Helm values
+│   └── sealed-image-updater-git-creds.yaml
 ├── apps/
-│   └── mana-archive/
-│       ├── deployment.yaml
-│       ├── service.yaml
-│       ├── pvc.yaml
-│       └── namespace.yaml
-└── observability/
-    ├── namespace.yaml
-    └── prometheus-stack/
+│   ├── mana-archive/             # the Cartarch app (base + homelab overlay)
+│   ├── cartarch-mcp/ obsidian-mcp/
+│   └── recurring-jobs/
+├── observability/                # kube-prometheus-stack values + namespace
+└── platform/                     # cluster-scoped platform resources
+docs/                             # runbooks, ADRs (docs/decisions/), recovery
+```
 
 ---
 
-## What this repo manages
+## Documentation
 
-### Application
-- Mana Archive deployment
-- Service and networking
-- Persistent volume claims
+Deeper, living docs are maintained in the AI-context vault ([cartarch-ai-context](https://github.com/jasonvandeventer/cartarch-ai-context), `vanfreckle-platform/`):
 
-### Storage
-- Longhorn-backed volumes
-- Backup/restore validation
+- `roadmap.md` — forward-looking priorities and the long-arc lifecycle
+- `cluster-layout.md` — steady-state topology, namespaces, ArgoCD inventory
+- `current-status.md` — current priorities, recent resolutions, known problems
 
-### Observability
-- Prometheus
-- Grafana
-- Loki
+In-repo, see `docs/decisions/` (ADRs), `docs/runbooks/`, `docs/recovery.md`, and `docs/restore-runbook.md`.
 
 ---
 
-## Deployment Flow
+## Deployment flow
 
-1. Changes are committed to this repository
-2. ArgoCD detects the change
-3. ArgoCD applies manifests to the cluster
-4. Cluster state is reconciled automatically
+1. Commit a manifest change to this repo.
+2. ArgoCD detects it and applies it to the cluster.
+3. State reconciles automatically; Image Updater bumps app image tags on new `v*.*.*` releases via Git write-back.
 
-No manual `kubectl apply` is required after initial setup.
-
----
-
-## Key Design Decisions
-
-### 1. Separation of concerns
-- App repo contains only application logic
-- Platform repo contains infrastructure
-
-### 2. GitOps over imperative control
-- No manual cluster drift
-- Everything is versioned and reproducible
-
-### 3. Persistent storage abstraction
-- Application is decoupled from storage implementation
-- Longhorn provides resilience and backup capability
-
-### 4. Observability built-in
-- Metrics, logs, and dashboards are part of the platform
-- Not an afterthought
+No manual `kubectl apply` after initial bootstrap (ArgoCD itself, and a few sealed-secret/credential bootstrap items, are documented in `docs/recovery.md`).
 
 ---
 
-## Operational Notes
+## Known tradeoffs
 
-- ArgoCD is configured with automated sync and self-heal
-- Any manual change in the cluster will be reverted
-- All changes must go through Git
-
----
-
-## Why this project matters
-
-This repository demonstrates:
-
-- real-world GitOps workflows
-- Kubernetes platform design
-- infrastructure as code beyond Terraform
-- operational thinking (backups, observability, reliability)
-
----
-
-## Future Improvements
-
-- Helm-based deployments for reusable components
-- External Secrets / Vault integration
-- Multi-environment support (dev/staging/prod)
-- CI pipeline for manifest validation and security scanning
-
+- **Single-host SPOF** — all four VMs run on one Unraid host; accepted while load is small (see `roadmap.md` Resilience tier).
+- **Longhorn capacity wall** — VM root disks are small; storage-hungry volumes are right-sized per-volume until the disks are expanded.
+- **Off-host backups** — Longhorn snapshots currently target NFS on the same host; off-site copy is tracked, not yet done.
