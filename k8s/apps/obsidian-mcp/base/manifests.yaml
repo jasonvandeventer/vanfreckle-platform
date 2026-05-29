@@ -78,8 +78,7 @@ spec:
               cpu: 200m
               memory: 256Mi
           readinessProbe:
-            httpGet:
-              path: /mcp/tools/list
+            tcpSocket:
               port: 8000
             initialDelaySeconds: 5
             periodSeconds: 10
