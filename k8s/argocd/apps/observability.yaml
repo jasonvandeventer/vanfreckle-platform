@@ -38,7 +38,7 @@ spec:
           - $values/k8s/observability/prometheus-stack/values.yaml
 
     # --- source 2: this repo, providing the values file ---
-    - repoURL: https://github.com/jasonvandeventer/mana-archive-platform.git
+    - repoURL: https://github.com/jasonvandeventer/vanfreckle-platform.git
       targetRevision: HEAD
       ref: values
 

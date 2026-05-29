@@ -1,69 +1,155 @@
-# Decision: Secrets Manager (Sealed Secrets)
+# Decision: Adopt Sealed Secrets as the Platform Secrets Strategy
 
-**Date:** 2026-05-27
-**Status:** Decided; implementation tracked as `roadmap.md` Near-Term item 4
-**Supersedes:** the open "Sealed Secrets or External Secrets Operator" question previously parked in `roadmap.md` *Resilience & Production-Readiness → Secrets and recovery hardening* and *Phase 5 → Secrets Management*
+**Status:** Accepted
+**Date:** 2026-05-28
 
 ## Context
 
-The platform has accumulated several out-of-band secrets:
+The platform has grown to the point where its secret handling is the weakest link in its GitOps story. Until now, Kubernetes Secrets have been hand-applied via `kubectl create secret` or `kubectl apply` from local files. Concretely:
 
-- Cloudflare Tunnel token
-- Nginx Proxy Manager admin credentials
-- `grafana-admin-credentials` (in the `observability` namespace) — hand-created during the 2026-05-27 observability redeploy, deliberately not in Git, must be recreated on any cluster rebuild or Grafana fails to start
-- Mana Archive / cartarch application secrets
+- Cloudflare tunnel token Secret
+- Nginx Proxy Manager admin credentials (where used)
+- Grafana admin password (currently chart-generated, not in Git)
+- mana-archive application Secrets (where present)
+- GHCR registry pull credential (image pull secret)
 
-The roadmap's Near-Term item 5 (deploy `obsidian-mcp` and `cartarch-mcp` under GitOps) requires committing a `CARTARCH_PROD_DB_URL` Secret without leaving plaintext in the repo. This was the forcing function — the open "pick a secrets manager when earned" question is now blocking concrete work.
+None of these are tracked in Git. None are reproducible if the cluster is rebuilt. All represent "the operator's laptop is the source of truth," which is exactly the GitOps anti-pattern the platform is trying to retire.
 
-The choice was between two real candidates:
+Two MCP servers are also queued (obsidian-mcp, cartarch-mcp). cartarch-mcp needs a kubernetes API token for log reading; obsidian-mcp has fewer secret needs but neither should ship before a real secrets strategy exists. This is the forcing function.
 
-- **Sealed Secrets** (bitnami-labs) — a controller in the cluster decrypts a `SealedSecret` CRD into a regular Kubernetes `Secret`. The encrypted form is what lives in Git.
-- **External Secrets Operator (ESO)** — pulls secrets at runtime from an external store (Vault, AWS Secrets Manager, 1Password Connect, etc.) and materializes them as Kubernetes Secrets in-cluster.
-
-Vault was explicitly out of scope per existing roadmap guidance ("avoid adding Vault before the platform needs it").
+The roadmap (*Resilience & Production-Readiness → Secrets and recovery hardening*) names two candidates: Sealed Secrets and External Secrets Operator. This ADR picks one.
 
 ## Decision
 
-**Adopt Sealed Secrets.**
+**Adopt Sealed Secrets (bitnami-labs/sealed-secrets), controller installed via the official Helm chart, managed by ArgoCD.**
 
-Deployed as an ArgoCD Application under `platform-root`. Existing out-of-band secrets migrated onto sealed manifests committed to Git. Future secrets land sealed by default.
+Operator workflow:
+
+1. Operator generates a Kubernetes Secret YAML locally (never committed)
+2. Operator runs `kubeseal` against the cluster's controller public key, producing a `SealedSecret` YAML
+3. The `SealedSecret` is committed to Git
+4. ArgoCD syncs the `SealedSecret` into the cluster
+5. The controller decrypts it into a Kubernetes Secret in the target namespace
+6. Workloads consume the Secret normally
 
 ## Rationale
 
-Four properties of the platform pushed the decision toward Sealed Secrets:
+### Why secrets-in-Git is the goal at all
 
-1. **Pure-GitOps alignment.** The encrypted secret *is* the Git artifact. No out-of-band store, no sync loop, no second source of truth. Matches the existing guiding principle "Git is the source of truth" without exception.
-2. **No new infrastructure to run.** Sealed Secrets is one controller in-cluster. ESO additionally requires running and securing a backend (Vault, 1Password Connect, or a cloud secret manager). For a single operator on a homelab, that is more surface area than the platform's current threat model justifies.
-3. **ArgoCD-native.** ArgoCD sees the `SealedSecret` CRD it does not try to decrypt; the controller decrypts and produces the actual `Secret`. Zero friction with the existing GitOps flow.
-4. **Boring and documented.** Does one thing. Matches the guiding principle "prefer boring, documented operations over clever automation."
+Without secrets in Git, the cluster cannot be rebuilt from Git alone. That breaks the "reproducible from scratch" principle in the roadmap's guiding principles. Every operator action that creates a Secret is undocumented state.
 
-ESO is more attractive *if* the platform later migrates to a cloud provider with a managed secret manager (referenced under `roadmap.md` Open Decisions → Hosting). That migration is undecided and possibly years away. Paying the ESO complexity tax today for a hypothetical future is the wrong tradeoff. The decision is reversible: if hosting changes, Sealed Secrets can be retired in favor of ESO without affecting the broader architecture.
+### Sealed Secrets vs. External Secrets Operator (ESO)
 
-## Consequences
+| Axis | Sealed Secrets | External Secrets Operator |
+|---|---|---|
+| New infrastructure required | None (controller in-cluster) | External vault (AWS Secrets Manager, HashiCorp Vault, etc.) |
+| Operator complexity | One tool: `kubeseal` | Vault + its auth + ESO + its config |
+| Where secrets live | Encrypted in Git, decrypted in cluster | Plain in vault, fetched at runtime |
+| Disaster recovery key | The controller's keypair (one Secret to back up) | Vault credentials + vault data |
+| GitOps purity | Pure: Git is sufficient | Hybrid: Git + vault required to bootstrap |
+| Operator surface area | Tiny | Significant |
 
-**Positive:**
+Sealed Secrets fits the platform's actual posture today: small operator, single cluster, no existing vault, GitOps-first religion. ESO is the right tool when secrets need to be shared across many clusters, audited centrally, or rotated automatically — none of which apply here yet.
 
-- Unblocks `roadmap.md` Near-Term item 5 (MCP deployment) — `cartarch-mcp`'s DB URL can be sealed and committed
-- Retires `grafana-admin-credentials` (and the other out-of-band Secrets) as hand-created bootstrap-tier artefacts
-- Sets the pattern for every future Secret committed to the repo
+### Why not "just commit base64-encoded Secrets"
 
-**Operational obligation — master key backup:**
-The Sealed Secrets controller has a master key. Lose it (cluster wipe, host loss, filesystem failure on the Unraid host) and every sealed secret in Git becomes useless until restored. This obligation folds into the off-host backups item in `roadmap.md` (Resilience tier) — `backup-strategy.md` covers it explicitly, and it is recorded as a bootstrap secret in `docs/recovery.md`. This is the one new failure mode introduced by the decision; it is real and must be addressed before paying-user load arrives.
+Kubernetes Secrets are base64-encoded, not encrypted. Committing them to a public repository (the platform repo is public) is equivalent to committing them in plaintext. Even in a private repo, GitHub leak scanners flag them and they would be exposed via any compromised CI step.
 
-**Natural pairing:** Image Updater is currently installed manually and not ArgoCD-managed (an existing bootstrap-tier risk in `current-status.md`). Sealed Secrets adoption is the same shape of fix ("controller in cluster but not managed by ArgoCD" → "controller managed by ArgoCD"). Knocking both out in the same sprint is real economy of motion; flagged here, the choice to pair them is operational rather than architectural.
+### Specifically why we picked the Helm-chart install
 
-## Alternatives considered
+Three reasons:
 
-- **External Secrets Operator (ESO).** Rejected for current setup: extra infrastructure, second source of truth, optimized for cases the platform does not yet have. Reconsider if hosting moves to managed Kubernetes with a managed secret backend.
-- **Vault.** Explicitly out of scope per existing roadmap guidance. The complexity is not justified by the current threat model or scale.
-- **Continue with plain Kubernetes Secrets + out-of-band creation.** The current baseline. Tolerable when the secret count is small and the operator is the only person who touches the cluster; not tolerable as soon as Secrets need to be committed to Git or rebuilt on recovery without manual reapplication of every credential.
+1. **Matches existing repo patterns.** `longhorn.yaml` and `observability.yaml` are both Helm-chart-via-ArgoCD Applications. Adding `sealed-secrets.yaml` in the same shape minimizes cognitive load and rollout risk.
+2. **Easier upgrades.** Bumping `targetRevision` and pushing is enough; no re-rendering.
+3. **No values customization needed yet.** The chart's defaults are fine for our scale.
 
-## References
+### Trade-offs we accept
 
-- `roadmap.md` Near-Term item 4 (this work's tracking entry)
-- `roadmap.md` Near-Term item 5 (MCP rollout — the forcing function)
-- `roadmap.md` Resilience & Production-Readiness → Off-host, off-site backups (master-key backup obligation)
-- `roadmap.md` Phase 5 → Secrets Management (progression path)
-- `current-status.md` Known Problems (Image Updater pairing opportunity)
-- `observability.md` *Secrets* section (the `grafana-admin-credentials` precedent)
-- `backup-strategy.md` *Sealed Secrets controller master key* (the operational obligation)
+- **Key rotation is a manual workflow.** The controller can rotate keys automatically (default: 30 days for new keys; old keys retained for decryption). We accept default behavior for now and document the manual rotation procedure as a future improvement.
+- **The controller's master key is a single point of failure.** If the Secret `sealed-secrets-key` in the `sealed-secrets` namespace is destroyed and not restored from a backup, every `SealedSecret` in Git becomes permanently undecryptable. Mitigation: explicit backup procedure (see *Master Key Backup* below).
+- **`kubeseal` must be installed on every machine that creates SealedSecrets.** A small operational requirement; acceptable.
+
+## Master Key Backup
+
+The controller's master keypair lives in a Secret named (by convention) `sealed-secrets-key*` in the `sealed-secrets` namespace. **Without this Secret, every SealedSecret in Git is irrecoverable.** It must be backed up.
+
+Backup procedure (run after the controller first starts, and re-run on rotation):
+
+```bash
+kubectl get secret -n sealed-secrets \
+  -l sealedsecrets.bitnami.com/sealed-secrets-key=active \
+  -o yaml > sealed-secrets-master.yaml.bak
+
+# Encrypt before storing off-host (Sealed Secrets cannot encrypt its own backup).
+# Recommended: age or gpg, stored in a password manager or off-site backup.
+age -p -o sealed-secrets-master.yaml.age sealed-secrets-master.yaml.bak
+rm sealed-secrets-master.yaml.bak
+```
+
+The encrypted backup goes in a separate location from the platform repo (password manager, encrypted USB, etc.). It is NOT committed to Git, even encrypted, because compromise of the repo + the encryption passphrase would still equal compromise of every platform Secret.
+
+Restore procedure (cluster rebuild):
+
+1. Install the Sealed Secrets controller (via ArgoCD as usual)
+2. **Before allowing the controller to generate a fresh keypair**, apply the backed-up `sealed-secrets-master.yaml`
+3. Restart the controller so it picks up the existing key
+4. All existing SealedSecrets now decrypt successfully
+
+This procedure should live in `docs/restore-runbook.md` as a separate failure mode.
+
+## Operator Workflow
+
+Workflow for creating a new application Secret:
+
+```bash
+# 1. Create the Secret locally (never commit this file)
+kubectl create secret generic my-app-secret \
+  --from-literal=api-key=REDACTED \
+  --from-literal=db-password=REDACTED \
+  --namespace my-app \
+  --dry-run=client -o yaml > /tmp/my-app-secret.yaml
+
+# 2. Encrypt it against the cluster's public key
+kubeseal --controller-namespace sealed-secrets \
+         --controller-name sealed-secrets-controller \
+         --format yaml \
+         < /tmp/my-app-secret.yaml \
+         > k8s/apps/my-app/base/sealed-secret.yaml
+
+# 3. Delete the plaintext file
+rm /tmp/my-app-secret.yaml
+
+# 4. Add to the app's kustomization, commit, push
+#    ArgoCD syncs the SealedSecret, the controller unwraps it into a Secret.
+```
+
+## Validation
+
+After the controller is running, verify the full path before trusting it:
+
+1. Create a test SealedSecret with non-sensitive contents
+2. Push to Git
+3. Confirm ArgoCD syncs it
+4. Confirm the controller materializes the underlying Secret
+5. Confirm a test pod can consume the Secret as expected
+6. Test the master-key backup AND restore procedure on a throwaway cluster or by deleting and recreating the controller (and confirming the test SealedSecret still decrypts)
+
+Step 6 is the critical one — backups whose restore procedure has not been tested are not backups.
+
+## Migration Plan for Existing Secrets
+
+In rough order:
+
+1. **Cloudflare tunnel token** — highest leverage, currently hand-applied
+2. **GHCR pull secret** — used by every workload that pulls from GHCR
+3. **Grafana admin password** — promote from chart-generated to known-and-rotatable
+4. **mana-archive application secrets** — whatever the app uses
+5. **MCP secrets** when those land (cartarch-mcp k8s API token)
+
+Each migration: create new SealedSecret in Git, sync, verify the consuming workload still works, delete the hand-applied Secret. Don't try to do all of them at once.
+
+## Related
+
+- `roadmap.md` → *Resilience & Production-Readiness → Secrets and recovery hardening* (originating roadmap item)
+- `docs/restore-runbook.md` → master-key restore procedure (to be added)
+- `backup-strategy.md` → master-key backup is now part of the platform's backup posture

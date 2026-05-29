@@ -6,7 +6,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/jasonvandeventer/mana-archive-platform.git
+    repoURL: https://github.com/jasonvandeventer/vanfreckle-platform.git
     targetRevision: main
     path: k8s/apps/mana-archive/overlays/homelab
   destination:

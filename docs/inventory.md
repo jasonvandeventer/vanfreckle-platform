@@ -3,7 +3,7 @@
 **Generated:** 2026-05-16
 **Last Updated:** 2026-05-19 (ArgoCD repo hygiene fixes — see docs/decisions/argocd-repo-hygiene.md)
 **Cluster:** K3s on Rocky Linux VMs (Unraid host)
-**Repo:** https://github.com/jasonvandeventer/mana-archive-platform
+**Repo:** https://github.com/jasonvandeventer/vanfreckle-platform
 **Author:** jason
 
 ## Purpose
