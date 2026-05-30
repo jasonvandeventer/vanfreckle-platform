@@ -15,6 +15,12 @@ spec:
       labels:
         app: mana-archive
     spec:
+      # Give the app time to shut down cleanly on SIGTERM before SIGKILL +
+      # Longhorn volume detach: the v3.30.23 on_shutdown handler stops the
+      # writer daemons, checkpoints the WAL, and closes the DB so the file is
+      # consistent at detach. Pairs with the app-side SQLite hardening; see
+      # sqlite-longhorn-corruption-analysis-2026-05-29.md (default is 30s).
+      terminationGracePeriodSeconds: 60
       initContainers:
         - name: migrate
           image: ghcr.io/jasonvandeventer/mana-archive:v3.4.3

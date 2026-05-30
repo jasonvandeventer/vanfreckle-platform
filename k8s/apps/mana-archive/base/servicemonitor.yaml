@@ -1,10 +1,8 @@
 # Repo path: k8s/apps/mana-archive/base/servicemonitor.yaml
 #
-# ⚠️ GATED (2026-05-29): NOT referenced by kustomization.yaml right now. It was
-# enabled ahead of the /metrics endpoint and made Prometheus scrape a 404 every
-# 30s against the live image (v3.30.22 has no /metrics). Re-enable by uncommenting
-# the kustomization.yaml line ONLY after an app image with /metrics (cartarch
-# #11 + #12) is the running image.
+# Active since cartarch v3.30.23 (2026-05-29) — the app now exposes /metrics, so
+# this scrapes 200. (It was briefly gated when it had gone live ahead of the
+# endpoint and scraped 404s; that ordering is now resolved.)
 #
 # Scrapes the cartarch (mana-archive) application's /metrics endpoint into the
 # kube-prometheus-stack Prometheus — the application-level observability that
