@@ -16,6 +16,7 @@ namespaces because the `default` AppProject allows destination namespace `*`.
 |---|---|---|
 | `grafana-admin-credentials.sealedsecret.yaml` | Grafana admin login (kube-prometheus-stack) | `observability` |
 | `image-updater-git-creds.sealedsecret.yaml` | Argo CD Image Updater git write-back creds | `argocd` |
+| `mana-archive-secrets.sealedsecret.yaml` | Cartarch app secrets (`RESEND_API_KEY`, `SESSION_SECRET_KEY`) | `mana-archive` |
 
 ## One-time adoption of pre-existing Secrets
 
@@ -27,6 +28,8 @@ each one first reconciles, annotate the live Secret to allow adoption:
 kubectl -n observability annotate secret grafana-admin-credentials \
   sealedsecrets.bitnami.com/managed=true
 kubectl -n argocd annotate secret image-updater-git-creds \
+  sealedsecrets.bitnami.com/managed=true
+kubectl -n mana-archive annotate secret mana-archive-secrets \
   sealedsecrets.bitnami.com/managed=true
 ```
 
