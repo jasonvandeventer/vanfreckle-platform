@@ -1,0 +1,28 @@
+# Repo path: k8s/apps/recurring-jobs/base/backup-target.yaml
+#
+# Longhorn's default backup target — Cloudflare R2 (S3-compatible), off-site DR.
+#
+# Replaces the prior NFS target (nfs://10.42.1.10:/mnt/user/backups/longhorn),
+# which lived on the SAME Unraid host as the cluster VMs and so carried zero
+# disaster-recovery value (host loss / fire / theft took the backups with the
+# data). R2 is off-host and off-site. Brought under GitOps here at the same time
+# (the NFS target was a hand-applied, unmanaged CR).
+#
+# URL format for S3-compatible targets: s3://<bucket>@<region>/
+#   - bucket: cartarch-backups
+#   - region: "auto" (R2 has no real regions; "auto" is the documented value)
+# The S3 endpoint + keys come from the credentialSecret (AWS_ENDPOINTS points at
+# https://<account>.r2.cloudflarestorage.com) — see
+# k8s/secrets/r2-backup-credential.sealedsecret.yaml.
+#
+# Local hourly snapshots (snapshot-1h) are unaffected — they stay on-volume for
+# fast corruption-restore; this target is only where the 6h backups are shipped.
+apiVersion: longhorn.io/v1beta2
+kind: BackupTarget
+metadata:
+  name: default
+  namespace: longhorn-system
+spec:
+  backupTargetURL: s3://cartarch-backups@auto/
+  credentialSecret: r2-backup-credential
+  pollInterval: 5m0s
