@@ -1,6 +1,6 @@
 # Decision: Timing of the v4 PostgreSQL Migration vs. Continued Platform Work
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-05-29
 
 ## Context
@@ -31,7 +31,7 @@ So the live question: **what is the next major investment — continued platform
 - **Higher-immediate-ROI platform work is cheaper:** off-host backups + a real restore test (Phase 4) protect the actual data *whatever* v4's timing; Alertmanager receivers would have paged on the Grafana crashloop we found by hand. These are days of work, and they protect the data and the v4 cutover alike.
 - Open v3 roadmap items (v3.27.9/11/13, the v3.29.x social arc) are unfinished; v4 freezes v3 feature delivery for its duration.
 
-## Decision (proposed)
+## Decision
 
 **Hybrid — don't panic-start v4 on the corruption scare, but treat it as a near-term initiative (not a far-off epic): land the cheap data-protection first because it *also* de-risks the v4 cutover itself, then do v4 — which at the demonstrated velocity is weeks of work, not months.**
 
