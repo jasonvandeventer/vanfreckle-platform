@@ -6,11 +6,7 @@ resources:
   - pvc.yaml
   - deployment.yaml
   - service.yaml
-  # - servicemonitor.yaml  # GATED 2026-05-29: re-enable only AFTER an app image
-  #   exposing /metrics is deployed. It went live ahead of the /metrics endpoint
-  #   (merged but not yet released — live image is v3.30.22, no /metrics), so
-  #   Prometheus scraped a 404 every 30s. Uncomment once the /metrics release
-  #   (cartarch #11 + #12) is the running image. See servicemonitor.yaml header.
+  - servicemonitor.yaml  # re-enabled 2026-05-29: /metrics is live as of cartarch v3.30.23
   - ingress.yaml
 
 images:
