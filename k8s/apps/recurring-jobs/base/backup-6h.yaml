@@ -7,7 +7,7 @@ spec:
   name: backup-6h
   task: backup
   cron: "0 0/6 * * ?"
-  retain: 10
+  retain: 28        # ~7 days of 6-hourly off-site backups on R2 (was 10 ≈ 2.5d)
   concurrency: 1
   groups:
     - default
