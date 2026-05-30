@@ -89,3 +89,16 @@ alertmanager:
         email_configs:
           - to: jason@vanfreckle.com
             send_resolved: true
+
+# k3s embeds kube-controller-manager, kube-scheduler, and kube-proxy in the
+# server process; they are not separately scrapeable, so the chart's default
+# ServiceMonitors mark them "down" and fire KubeControllerManagerDown /
+# KubeSchedulerDown / KubeProxyDown — false positives that would spam the new
+# email receiver. Disable their component monitoring (k3s health is still
+# covered by node-exporter, kubelet, and apiserver metrics).
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeProxy:
+  enabled: false
