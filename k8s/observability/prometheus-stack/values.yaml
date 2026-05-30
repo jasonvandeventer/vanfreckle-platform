@@ -34,13 +34,17 @@ prometheus:
               storage: 8Gi
 
 grafana:
-  # Durable Grafana DB (dashboards, prefs, users) on Longhorn -- also emptyDir before.
+  # Grafana runs on an ephemeral emptyDir DB by deliberate choice (2026-05-29).
+  # Its grafana.db holds no irreplaceable state here: the admin login comes from
+  # the grafana-admin-credentials Secret (below), and dashboards + datasources
+  # are GitOps/sidecar-provisioned. The previous Longhorn PVC made the SQLite DB
+  # vulnerable to the cluster's recurring SQLite-on-Longhorn corruption on
+  # unclean restarts -- which is exactly what happened (DB "malformed", Grafana
+  # CrashLoopBackOff after a ~14h-ago node2 reschedule). emptyDir rebuilds the DB
+  # each start, making Grafana immune to that corruption class, and frees 5Gi on
+  # the capacity-constrained Longhorn nodes. Same posture as Alertmanager below.
   persistence:
-    enabled: true
-    type: pvc
-    storageClassName: longhorn
-    accessModes: ["ReadWriteOnce"]
-    size: 5Gi
+    enabled: false
   # Admin credential read from a cluster-side Secret that is NOT committed to Git.
   # Create it once (see docs/recovery.md); the password value never enters the repo.
   admin:
