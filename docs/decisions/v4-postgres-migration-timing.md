@@ -1,6 +1,6 @@
 # Decision: Timing of the v4 PostgreSQL Migration vs. Continued Platform Work
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-05-29
 
 ## Context
