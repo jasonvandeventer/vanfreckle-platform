@@ -3,6 +3,8 @@ kind: Service
 metadata:
   name: mana-archive
   namespace: mana-archive
+  labels:
+    app: mana-archive          # selectable by the ServiceMonitor (servicemonitor.yaml)
 spec:
   selector:
     app: mana-archive
