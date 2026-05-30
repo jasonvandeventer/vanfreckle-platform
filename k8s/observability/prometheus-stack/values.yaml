@@ -13,19 +13,20 @@ prometheus:
     # wiped on every pod restart (4x already). This is the actual latent fix --
     # without it, the redeploy would faithfully reproduce the original problem.
     #
-    # Sizing (2026-05-27): the cluster's Longhorn nodes are small (~34G disks on
-    # 40G VMs) and near full -- a 20Gi x2-replica volume could not be scheduled.
-    # 8Gi is generous for 10d of 4-node metrics; 1 replica is the honest count
-    # for a non-backed-up, re-scrapeable monitoring TSDB. The replica-count
-    # annotation is a PER-VOLUME Longhorn override -- it does NOT change the
-    # cluster-wide `longhorn` StorageClass default for other apps.
-    # Revisit once the VM disks are expanded (separate roadmap item); Longhorn
-    # supports online volume expansion, so 8Gi can be grown later in place.
+    # Sizing: 8Gi is generous for 10d of 4-node metrics. The Longhorn capacity
+    # wall that originally forced it small (40G VMs, ~34G usable) was resolved
+    # 2026-05-28 (VM disks grown to 100G; ~195Gi free), so 8Gi can be grown
+    # online whenever wanted.
+    #
+    # Replica count: this volume runs at the `longhorn` StorageClass default of
+    # 3 replicas. A prior `longhorn.io/replica-count: "1"` PVC annotation was
+    # removed 2026-05-29 -- it was a NO-OP. Longhorn reads replica count from the
+    # StorageClass (`numberOfReplicas`) or the global default, NOT from a PVC
+    # annotation, so the volume was always 3. 3 replicas of a re-scrapeable TSDB
+    # is harmless now that capacity isn't scarce; to actually run fewer, point
+    # this volumeClaimTemplate at a dedicated 1-replica StorageClass instead.
     storageSpec:
       volumeClaimTemplate:
-        metadata:
-          annotations:
-            longhorn.io/replica-count: "1"
         spec:
           storageClassName: longhorn
           accessModes: ["ReadWriteOnce"]

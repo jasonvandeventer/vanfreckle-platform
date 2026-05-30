@@ -1,0 +1,33 @@
+# Repo path: k8s/apps/mana-archive/base/servicemonitor.yaml
+#
+# Scrapes the cartarch (mana-archive) application's /metrics endpoint into the
+# kube-prometheus-stack Prometheus — the application-level observability that
+# the chart's ~13 default ServiceMonitors do NOT cover.
+#
+# Preconditions:
+#   - the app must expose /metrics (cartarch PR: prometheus-fastapi-instrumentator
+#     mounts it at /metrics). Deploy that BEFORE merging this, or the target sits
+#     Down until it ships.
+#   - the `release: kube-prometheus-stack` label below is REQUIRED — this
+#     Prometheus only selects ServiceMonitors carrying it.
+#   - selects the mana-archive Service by its `app: mana-archive` metadata label
+#     (added in service.yaml) and scrapes its named `http` port at /metrics.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: mana-archive
+  namespace: mana-archive
+  labels:
+    release: kube-prometheus-stack
+spec:
+  selector:
+    matchLabels:
+      app: mana-archive
+  namespaceSelector:
+    matchNames:
+      - mana-archive
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
+      scheme: http
