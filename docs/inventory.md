@@ -85,6 +85,7 @@ Production workload. Managed by ArgoCD Application `mana-archive` via Kustomize 
 - **Ingresses:** mana-archive → mana.vanfreckle.com
 - **PVCs:** mana-archive-data-longhorn (5Gi, Longhorn-backed, healthy)
 - **Migration Jobs (defined but not actively running):** migrate-v3.yaml, migrate-v3-4.yaml
+- **Image / version:** auto-deployed by image-updater (semver). The live tag lives in `overlays/homelab/.argocd-source-mana-archive.yaml`, **not** the base `kustomization.yaml` `newTag` (an inert default) — see the ArgoCD Applications section for the mechanism and troubleshooting caveats.
 
 ### observability (34d) — UNMANAGED
 
@@ -165,7 +166,7 @@ Four Applications exist in the cluster. All defined in `k8s/argocd/`.
 | platform | `k8s/argocd/apps/platform.yaml` | Synced | Healthy | Manages `k8s/platform/` — currently the `local-path` StorageClass override |
 
 
-`k8s/argocd/image-updaters/mana-archive.yaml` exists and is presumably an Image Updater configuration for the mana-archive Application, but the Image Updater controller itself is not managed by any Application — see Drift Summary.
+`k8s/argocd/image-updaters/mana-archive.yaml` defines the `mana-archive-updater` **ImageUpdater CRD** (semver strategy, `useAnnotations: false`, git write-back to `main` via secret `argocd/image-updater-git-creds`). On each new release it writes the deployed tag into `k8s/apps/mana-archive/overlays/homelab/.argocd-source-mana-archive.yaml` as a kustomize image override, which ArgoCD applies *on top of* the base. **That `.argocd-source` file — not the base `kustomization.yaml` `newTag` — is the source of truth for the running version.** `kubectl kustomize` renders only the inert base default (e.g. v3.30.15 while the cluster runs v3.30.23), so do not trust it when diagnosing the live tag, and never `kubectl set image` (that bypasses image-updater and creates drift). Because `useAnnotations: false`, any `argocd-image-updater.argoproj.io/*` annotation on the Application is ignored — a stray `ignore: "true"` was removed 2026-05-30 after it caused a false "image-updater disabled" diagnosis. The Image Updater controller itself is not managed by any Application — see Drift Summary.
 
 ## GitOps Drift Summary
 
