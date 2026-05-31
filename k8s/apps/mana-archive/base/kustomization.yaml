@@ -11,4 +11,4 @@ resources:
 
 images:
   - name: ghcr.io/jasonvandeventer/mana-archive
-    newTag: v3.30.15
+    newTag: v3.30.23
