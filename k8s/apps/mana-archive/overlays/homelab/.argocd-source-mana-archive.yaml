@@ -1,11 +1,3 @@
-# TEMPORARY PIN — CSRF incident 2026-05-31.
-# cartarch v3.31.0 introduced a CSRF regression ("Invalid CSRF token" on
-# sign-in); v3.31.1 did not fix it. Rolled back to the last known-good tag,
-# v3.30.23 (login worked across the entire v3.30.x line). Auto-updates for
-# this image are disabled in k8s/argocd/image-updaters/mana-archive.yaml so
-# the semver updater cannot re-bump onto the broken 3.31.x line. Restore the
-# updater + bump this tag once the app ships a fixed release (>= v3.31.2) and
-# sign-in is verified.
 kustomize:
   images:
-  - ghcr.io/jasonvandeventer/mana-archive=ghcr.io/jasonvandeventer/mana-archive:v3.30.23
+  - ghcr.io/jasonvandeventer/mana-archive=ghcr.io/jasonvandeventer/mana-archive:v3.31.1
