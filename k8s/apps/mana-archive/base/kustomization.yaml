@@ -9,6 +9,15 @@ resources:
   - servicemonitor.yaml  # re-enabled 2026-05-29: /metrics is live as of cartarch v3.30.23
   - ingress.yaml
 
+# ⚠️ image-updater owns the LIVE image tag — this newTag is an inert default.
+# The deployed version is written by the `mana-archive-updater` ImageUpdater CRD
+# (k8s/argocd/image-updaters/mana-archive.yaml, semver, git write-back) into the
+# overlay's `.argocd-source-mana-archive.yaml` as a kustomize image override,
+# which ArgoCD applies ON TOP of this. So:
+#   - `kubectl kustomize` here shows v3.30.15, NOT what's running.
+#   - To see/set the deployed tag, read .argocd-source-mana-archive.yaml in the
+#     homelab overlay — never `kubectl set image` (manual drift).
+# Leaving this value pinned only as a floor; updating it has no effect on deploys.
 images:
   - name: ghcr.io/jasonvandeventer/mana-archive
     newTag: v3.30.15
