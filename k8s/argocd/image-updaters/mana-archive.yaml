@@ -12,12 +12,20 @@ spec:
       branch: "main"
 
   applicationRefs:
+    # === AUTO-UPDATES DISABLED — CSRF incident 2026-05-31 ===
+    # cartarch v3.31.0 shipped a CSRF regression ("Invalid CSRF token" on
+    # sign-in). The deployed tag is pinned to the last known-good v3.30.23 in
+    # overlays/homelab/.argocd-source-mana-archive.yaml. Managing zero images
+    # here stops the semver updater from re-bumping onto the broken 3.31.x
+    # line. Re-enable by restoring the commented `images` block once the app
+    # ships a fixed release (>= v3.31.2) and sign-in is verified.
     - namePattern: "mana-archive"
-      images:
-        - alias: "manaarchive"
-          imageName: "ghcr.io/jasonvandeventer/mana-archive"
-          commonUpdateSettings:
-            updateStrategy: "semver"
-          manifestTargets:
-            kustomize:
-              name: "ghcr.io/jasonvandeventer/mana-archive"
+      images: []
+      # images:
+      #   - alias: "manaarchive"
+      #     imageName: "ghcr.io/jasonvandeventer/mana-archive"
+      #     commonUpdateSettings:
+      #       updateStrategy: "semver"
+      #     manifestTargets:
+      #       kustomize:
+      #         name: "ghcr.io/jasonvandeventer/mana-archive"
