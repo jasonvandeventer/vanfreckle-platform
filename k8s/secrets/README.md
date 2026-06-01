@@ -17,6 +17,7 @@ namespaces because the `default` AppProject allows destination namespace `*`.
 | `grafana-admin-credentials.sealedsecret.yaml` | Grafana admin login (kube-prometheus-stack) | `observability` |
 | `image-updater-git-creds.sealedsecret.yaml` | Argo CD Image Updater git write-back creds | `argocd` |
 | `mana-archive-secrets.sealedsecret.yaml` | Cartarch app secrets (`RESEND_API_KEY`, `SESSION_SECRET_KEY`) | `mana-archive` |
+| `cnpg-backup-r2.sealedsecret.yaml` | R2 creds for CloudNativePG Barman Cloud Plugin backups | `cartarch` |
 
 ## One-time adoption of pre-existing Secrets
 
