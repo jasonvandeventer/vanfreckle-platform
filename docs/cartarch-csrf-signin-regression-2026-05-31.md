@@ -1,19 +1,32 @@
 # Cartarch CSRF Sign-in Regression (v3.31.0)
 
 **Date:** 2026-05-31
-**Status:** Mitigated in infra (rolled back to v3.30.23). **App-side fix implemented** in `cartarch` branch `fix/csrf-signin-recovery` (targets v3.31.2) — pending merge + deploy + sign-in verification, then un-pin (see *Resolution* below). The original ranked hypotheses below are superseded by the source-level findings in *Resolution*.
+**Status:** ✅ **RESOLVED — v3.31.2 deployed 2026-06-01, sign-in verified by Jason in prod.** App-side fix shipped in `cartarch` PR #13 (v3.31.2); deployed via `vanfreckle-platform` PR #25. The original ranked hypotheses below are superseded by the source-level findings in *Resolution*.
 **Symptom:** "Invalid CSRF token" on sign-in; `POST /login -> 403 Forbidden`.
 
 ## Timeline (UTC, 2026-05-31)
 
-| Time | Event |
+| Time (UTC) | Event |
 |---|---|
-| 04:42 | argocd-image-updater auto-bump `v3.30.23 -> v3.31.0` |
-| 15:20 | auto-bump `v3.31.0 -> v3.31.1` (did not fix CSRF) |
-| (day of) | Jason reports "Invalid CSRF token" on sign-in |
-| ~merge | Infra rollback to v3.30.23 + updater pin merged to `main` (PR #22) |
+| 05-31 04:42 | argocd-image-updater auto-bump `v3.30.23 -> v3.31.0` |
+| 05-31 15:20 | auto-bump `v3.31.0 -> v3.31.1` (did not fix CSRF) |
+| 05-31 (day of) | Jason reports "Invalid CSRF token" on sign-in |
+| 05-31 ~merge | Infra rollback to v3.30.23 + updater "disable" merged to `main` (PR #22) |
+| 05-31 16:54 | **updater clobbers the rollback** — `f084fc6` re-bumps `v3.30.23 -> v3.31.1` |
+| 06-01 ~04:00 | re-assert v3.30.23 pin (PR #24) — **clobbered again** `90c5f7d` at 04:07 |
+| 06-01 ~04:10 | cartarch PR #13 (fix) merged; tag `v3.31.2` pushed -> image built |
+| 06-01 | PR #25 pins `v3.31.2` + re-enables updater; ArgoCD deploys it |
+| 06-01 | **Jason verifies sign-in works in prod on v3.31.2 — RESOLVED** |
 
 Sign-in worked across the entire `v3.30.x` line and broke the day the app jumped to `v3.31.x`. Nothing in `vanfreckle-platform` touched the login path (single replica, stable `SESSION_SECRET_KEY`, ingress unchanged) -> the regression is in `cartarch` app code shipped in **v3.31.0**.
+
+## The rollback never held — updater clobber (important)
+
+The infra mitigation (PR #22: pin v3.30.23 + `images: []`) **did not actually stop the updater.** argocd-image-updater re-bumped the pin back onto the broken `v3.31.1` **twice** (`f084fc6`, then `90c5f7d` minutes after the re-pin PR #24 merged), each time also stripping the pin comment. So prod ran **broken v3.31.1 the whole time**, not v3.30.23 — discovered 06-01 by reading the live `/login` footer folio (`Issue XXXI · Entry I` = v3.31.1) and the pod image.
+
+Rather than keep fighting it, we went **straight to v3.31.2**: the updater tracks the *latest* semver tag, and the latest is now the *fixed* build, so the pin and the updater agree — no more clobber loop, and auto-updates were re-enabled honestly.
+
+**Open follow-up:** why did `images: []` not disable the live updater? Likely the `k8s/argocd/image-updaters/` path isn't synced to the cluster by any Application (the `mana-archive` Application has no image-updater annotations), so edits there never reach the controller. Confirm before relying on that path to halt updates again.
 
 ## Mitigation applied (infra, this repo)
 
