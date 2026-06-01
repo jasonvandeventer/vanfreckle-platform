@@ -1,0 +1,79 @@
+# Repo path: k8s/apps/cartarch-postgres/base/cluster.yaml
+#
+# The cartarch PostgreSQL cluster, managed by CloudNativePG. This is the durable
+# replacement for SQLite-on-Longhorn — CNPG runs streaming replication between
+# instances (each on its own Longhorn PVC) and ships WALs + base backups to R2
+# (Barman Cloud), giving crash-safe WAL durability + PITR. The recurring
+# SQLite-on-Longhorn corruption class (unclean volume detach) does not apply:
+# a standby promotes on primary loss, and PITR reconstructs from R2.
+#
+# CNPG auto-generates two secrets in this namespace:
+#   - cartarch-pg-superuser  (postgres superuser)
+#   - cartarch-pg-app        (the `cartarch` app role) — its `uri` key is a
+#     ready-made postgresql://… DSN. The v4 app reads DATABASE_URL from it via
+#     secretKeyRef (Workstream A); db.py rewrites the scheme to
+#     postgresql+psycopg://. See docs/runbooks/cnpg-bring-up.md.
+#
+# VERIFY before first sync:
+#   - imageName tag against the current CNPG-published Postgres image.
+#   - endpointURL — set to the SAME R2 S3 endpoint already used by the Longhorn
+#     BackupTarget (the AWS_ENDPOINTS value sealed in r2-backup-credential).
+#   - the cnpg-backup-r2 Secret must exist in THIS namespace first (kubeseal
+#     step in the runbook) or backups/WAL archiving will fail.
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: cartarch-pg
+  namespace: cartarch
+spec:
+  instances: 2                     # 1 primary + 1 hot standby. DECISION POINT:
+                                   # 3 enables quorum-based synchronous replication
+                                   # (stronger HA across node2–4); 2 is the lean default.
+  imageName: ghcr.io/cloudnative-pg/postgresql:17.2   # VERIFY current tag
+
+  primaryUpdateStrategy: unsupervised   # homelab: let CNPG roll minor updates
+
+  storage:
+    storageClass: longhorn
+    size: 10Gi                     # data is tiny (~1 user); headroom for the
+                                   # rebuilt scryfall_cards cache (~150 MB today)
+  walStorage:
+    storageClass: longhorn
+    size: 5Gi                      # separate WAL volume — standard CNPG practice
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+
+  # Bootstrap a fresh, forward-named database + role. The v4 migration strategy
+  # is "schema baseline" (Base.metadata.create_all on a fresh DB, seed
+  # schema_migrations as all-applied) — see the v4 scope doc — so an empty
+  # `cartarch` DB owned by the `cartarch` role is exactly the right start.
+  bootstrap:
+    initdb:
+      database: cartarch
+      owner: cartarch
+
+  # Base backups + continuous WAL archiving to Cloudflare R2 (S3-compatible),
+  # reusing the existing off-site bucket under a dedicated /cnpg prefix (the
+  # Longhorn backups live at the bucket root). This is the v4 cutover safety net.
+  backup:
+    retentionPolicy: "30d"
+    barmanObjectStore:
+      destinationPath: s3://cartarch-backups/cnpg
+      endpointURL: https://ACCOUNT_ID.r2.cloudflarestorage.com   # SET to your R2 endpoint
+      s3Credentials:
+        accessKeyId:
+          name: cnpg-backup-r2
+          key: ACCESS_KEY_ID
+        secretAccessKey:
+          name: cnpg-backup-r2
+          key: SECRET_ACCESS_KEY
+      wal:
+        compression: gzip
+      data:
+        compression: gzip

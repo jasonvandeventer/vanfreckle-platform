@@ -1,0 +1,19 @@
+# Repo path: k8s/apps/cartarch-postgres/base/scheduled-backup.yaml
+#
+# Daily base backup of the cartarch cluster to R2 (the barmanObjectStore
+# configured on the Cluster). Continuous WAL archiving runs independently and
+# constantly; this base backup bounds PITR recovery time and is what the
+# retentionPolicy ("30d") prunes against.
+#
+# NOTE: CNPG cron is 6-field (leading SECONDS), unlike the 5-field Longhorn
+# RecurringJob cron. "0 0 3 * * *" = 03:00 every day.
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: cartarch-pg-daily
+  namespace: cartarch
+spec:
+  schedule: "0 0 3 * * *"
+  backupOwnerReference: self
+  cluster:
+    name: cartarch-pg
