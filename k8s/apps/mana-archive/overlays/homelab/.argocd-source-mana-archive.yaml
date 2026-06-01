@@ -1,3 +1,14 @@
+# cartarch v3.31.2 — CSRF sign-in regression RESOLVED.
+# v3.31.0/v3.31.1 had the "Invalid CSRF token" sign-in failure; v3.31.2
+# (cartarch PR #13) ships the fix: the public pre-auth forms self-heal an
+# empty-session CSRF state instead of returning 403.
+#
+# Note on the incident's pin/disable: setting `images: []` in
+# k8s/argocd/image-updaters/mana-archive.yaml did NOT stop the updater (it
+# re-bumped v3.30.23 -> v3.31.1 twice — commits f084fc6 and 90c5f7d), so the
+# rollback pin would not hold. That risk is now moot: the updater tracks the
+# latest semver tag, and the latest tag (v3.31.2) is the FIXED build. This
+# pin matches what the updater wants, so they no longer fight.
 kustomize:
   images:
-  - ghcr.io/jasonvandeventer/mana-archive=ghcr.io/jasonvandeventer/mana-archive:v3.31.1
+  - ghcr.io/jasonvandeventer/mana-archive=ghcr.io/jasonvandeventer/mana-archive:v3.31.2
