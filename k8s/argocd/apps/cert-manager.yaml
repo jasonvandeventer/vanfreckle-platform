@@ -30,7 +30,7 @@ spec:
   source:
     repoURL: https://charts.jetstack.io
     chart: cert-manager
-    targetRevision: "v1.17.2"                   # VERIFY — pin to current stable
+    targetRevision: "v1.20.2"                   # verified current stable 2026-06-01
     helm:
       releaseName: cert-manager
       values: |

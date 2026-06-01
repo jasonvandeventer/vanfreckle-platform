@@ -46,15 +46,13 @@ Sync-wave order on a cold bring-up: cert-manager → operator → plugin → clu
 3. **PostgreSQL 17** (`17.10-…-standard-bookworm`), **10Gi** data + **5Gi** WAL.
 4. **Backups reuse the R2 bucket** `cartarch-backups` under a `/cnpg` prefix.
 
-## Pins applied / to VERIFY before committing
+## Pins applied (all verified 2026-06-01)
 
-- ✅ CNPG operator chart `0.28.2` (operator 1.29.1) — verified current 2026-06-01.
+- ✅ CNPG operator chart `0.28.2` (operator 1.29.1).
 - ✅ Postgres image `17.10-202606010953-standard-bookworm`.
 - ✅ R2 endpoint in `objectstore.yaml` (the account S3 endpoint).
 - ✅ Plugin release `v0.12.0` (step 1).
-- ⚠️ **cert-manager chart version** — `cert-manager.yaml` pins `v1.17.2` as a
-  placeholder. VERIFY: `helm repo add jetstack https://charts.jetstack.io &&
-  helm search repo jetstack/cert-manager --versions | head`.
+- ✅ cert-manager chart `v1.20.2`.
 
 ## Step 1 — vendor the plugin manifest (manual, pinned)
 
