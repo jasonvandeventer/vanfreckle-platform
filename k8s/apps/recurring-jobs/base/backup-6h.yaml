@@ -9,8 +9,16 @@ spec:
   cron: "0 0/6 * * ?"
   retain: 28        # ~7 days of 6-hourly off-site backups on R2 (was 10 ≈ 2.5d)
   concurrency: 1
+  # Off-site backup is OPT-IN, not catch-all. The `default` group was removed
+  # 2026-06-01: Longhorn auto-adds every label-less volume to `default`, so this
+  # job was block-backing-up Prometheus (8Gi, high-churn TSDB — poor dedup) and
+  # the CNPG Postgres PVCs (already backed up logically by CNPG→R2) to R2,
+  # blowing past the 10 GB R2 free tier. A volume now gets off-site backup only
+  # by carrying the direct `recurring-job.longhorn.io/backup-6h: enabled` label
+  # (the live `mana-archive-data-longhorn` volume already has it). Prometheus is
+  # reconstructable monitoring data (Grafana is already ephemeral for the same
+  # reason) and is intentionally NOT backed up off-site.
   groups:
-    - default
     - test
   labels: {}
   parameters: {}
