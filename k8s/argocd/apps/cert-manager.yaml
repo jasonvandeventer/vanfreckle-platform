@@ -1,0 +1,55 @@
+# Repo path: k8s/argocd/apps/cert-manager.yaml
+#
+# cert-manager — a NEW platform dependency, pulled in by the Barman Cloud Plugin
+# (the CNPG backup path on operator >= 1.26, after the in-tree barmanObjectStore
+# was removed). The plugin uses cert-manager to issue the TLS certs for the
+# gRPC channel between the CNPG operator and the per-instance plugin sidecars.
+#
+# cert-manager is independently useful (it can later issue real certs for
+# in-cluster TLS), so this is a reusable addition, not single-purpose weight.
+#
+# sync-wave "-2": must be healthy (webhook up, CRDs registered) before the
+# plugin's Certificate/Issuer resources apply (wave "0") and before the CNPG
+# operator (wave "-1").
+#
+# Layout: Helm chart install, same shape as sealed-secrets / cloudnative-pg.
+# VERIFY targetRevision against current stable before first sync:
+#   helm repo add jetstack https://charts.jetstack.io
+#   helm search repo jetstack/cert-manager --versions | head
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cert-manager
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://charts.jetstack.io
+    chart: cert-manager
+    targetRevision: "v1.17.2"                   # VERIFY — pin to current stable
+    helm:
+      releaseName: cert-manager
+      values: |
+        crds:
+          enabled: true                         # install CRDs with the chart
+        resources:
+          requests:
+            cpu: 10m
+            memory: 64Mi
+          limits:
+            cpu: 100m
+            memory: 256Mi
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cert-manager
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

@@ -17,3 +17,6 @@ spec:
   backupOwnerReference: self
   cluster:
     name: cartarch-pg
+  method: plugin                  # route through the Barman Cloud Plugin (not the removed in-tree path)
+  pluginConfiguration:
+    name: barman-cloud.cloudnative-pg.io

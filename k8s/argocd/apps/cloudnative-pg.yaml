@@ -27,7 +27,7 @@ metadata:
   name: cloudnative-pg
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "0"          # operator + CRDs first
+    argocd.argoproj.io/sync-wave: "-1"         # after cert-manager (-2), before plugin (0) + cluster (1)
   finalizers:
     - resources-finalizer.argocd.argoproj.io   # cascade delete, consistent with other Apps
 spec:
@@ -35,7 +35,7 @@ spec:
   source:
     repoURL: https://cloudnative-pg.github.io/charts
     chart: cloudnative-pg
-    targetRevision: "0.23.1"                    # VERIFY — pin to current stable
+    targetRevision: "0.28.2"                    # operator 1.29.1 (verified current stable 2026-06-01)
     helm:
       releaseName: cloudnative-pg
       values: |
