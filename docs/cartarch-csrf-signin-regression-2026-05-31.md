@@ -1,7 +1,7 @@
 # Cartarch CSRF Sign-in Regression (v3.31.0)
 
 **Date:** 2026-05-31
-**Status:** Mitigated in infra (rolled back to v3.30.23). Root cause is **app-side**, unfixed — needs a `cartarch` code fix (target >= v3.31.2). Diagnosis below is inference from read-only signals, not a confirmed source-level root cause.
+**Status:** Mitigated in infra (rolled back to v3.30.23). **App-side fix implemented** in `cartarch` branch `fix/csrf-signin-recovery` (targets v3.31.2) — pending merge + deploy + sign-in verification, then un-pin (see *Resolution* below). The original ranked hypotheses below are superseded by the source-level findings in *Resolution*.
 **Symptom:** "Invalid CSRF token" on sign-in; `POST /login -> 403 Forbidden`.
 
 ## Timeline (UTC, 2026-05-31)
@@ -50,6 +50,20 @@ Start from the delta: `git log --oneline v3.30.23..v3.31.0`, focus on files touc
 4. **Token made single-use or short-TTL** -> fails users who linger on the login page.
 
 Best guess: **#1**, with **#2** as runner-up if incognito also fails.
+
+## Resolution (source-level, 2026-05-31)
+
+Investigated against the actual `cartarch` source + a reproduction harness (TestClient over the real SessionMiddleware/cookie path, both `starlette` 0.52.1 and 1.2.1). Findings:
+
+- **CSRF is pure double-submit** — `require_csrf_token` compares the form token to `request.session["csrf_token"]`. There is **no** Origin/Referer check, no TTL, no single-use. This rules out hypotheses **#2, #3, #4** at the source level.
+- **The login/session/CSRF code is byte-identical to v3.30.23**, and `git diff v3.30.23..v3.31.0` touches *nothing* on the login path except `render()` gaining `Cache-Control: no-store` (which only makes responses *fresher* — it cannot introduce a staleness bug). No new `request.session` writes (cookie can't have bloated past 4 KB). This rules out hypothesis **#1** (no serializer/key/cookie-name change in app code).
+- **Login works in every dependency combo tested** (starlette 0.52.1 *and* the new major 1.2.1; fastapi 0.136.3; itsdangerous 2.2.0). With the real `requirements.txt` constraints, `prometheus-fastapi-instrumentator>=7.0,<8.0` still caps starlette `<1.0.0`, so builds resolve 0.52.1 — i.e. no silent dependency drift in the deployed images either. (Note for future: instrumentator **8.0.0**, released 2026-05-29, moves to `starlette>=1.0.0`; a careless bump past `<8.0` would pull the starlette 1.x major — pin deliberately.)
+
+**Actual root cause:** not a logic regression but a **session-cookie-continuity failure** that the v3.31.0 *rollout* (new public landing page + the `cartarch.com` second-host cutover) started exposing for real users. A logged-out browser reaches `POST /login` holding **no usable session cookie** — a stale/expired cookie the server now drops as an empty session, a cookie scoped to the pre-cutover host, or a `/login` page served from an edge cache *without* its per-user `Set-Cookie`. Strict double-submit then has no session token to match, and `GET /login` alone can't repair a cookie the browser won't replace — so the user dead-ends on a permanent 403. Matches every observed signal: token generation works, fresh sessions succeed, existing users persistently fail, "works in incognito."
+
+**Fix (`fix/csrf-signin-recovery`, v3.31.2):** the four public pre-auth forms (`login` / `register` / `forgot-password` / `reset-password`) now distinguish a token *mismatch* (live session, wrong token → still 403, the suspicious case) from *no session token at all* (first contact → re-render with a freshly issued token + cookie so the immediate resubmit succeeds). This is the note's recommended fix-pattern #1, scoped to the empty-session case where there is no authenticated state to protect; authenticated mutations keep strict `CsrfRequired` unchanged. New end-to-end cookie-jar test reproduces the 403 on an empty-session POST and asserts it self-heals.
+
+**Un-pin checklist (unchanged):** merge + deploy v3.31.2, verify sign-in (incl. a stale-cookie/incognito pass), then bump the tag in `.argocd-source-mana-archive.yaml` and re-enable `image-updaters/mana-archive.yaml`.
 
 ## Cross-references
 - `vanfreckle-platform` PR #22 — infra rollback + updater pin
