@@ -19,7 +19,6 @@ namespaces because the `default` AppProject allows destination namespace `*`.
 | `mana-archive-secrets.sealedsecret.yaml` | Cartarch app secrets (`RESEND_API_KEY`, `SESSION_SECRET_KEY`) | `mana-archive` |
 | `alertmanager-resend.sealedsecret.yaml` | Alertmanager → Resend SMTP key (email alerting) | `observability` |
 | `r2-backup-credential.sealedsecret.yaml` | Cloudflare R2 creds for the Longhorn off-site BackupTarget | `longhorn-system` |
-| `cnpg-backup-r2.sealedsecret.yaml` | R2 creds for CloudNativePG Barman Cloud Plugin backups | `cartarch` |
 
 ## One-time adoption of pre-existing Secrets
 
