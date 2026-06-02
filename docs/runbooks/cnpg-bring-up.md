@@ -155,6 +155,42 @@ Record the result (object path, restored row counts, integrity) the way the
 Longhorn R2 restore was logged in `backup-strategy.md`. **Until this passes, the
 gate is not cleared.**
 
+## ⚠️ KNOWN ISSUE (2026-06-02): base backups don't run — plugin sidecar not injected
+
+**Status: open, pre-cutover blocker. WAL archiving + restore-from-R2 both work; only base backups are affected.**
+
+Symptom: `Backup` / `ScheduledBackup` (method `plugin`) hang in `pending` forever;
+`.status.firstRecoverabilityPoint` / `lastSuccessfulBackup` never populate.
+
+Root cause (fully diagnosed): the operator never injects the `plugin-barman-cloud`
+**sidecar** into the instance pods, so dispatched base backups have nothing to run them.
+Everything upstream of injection is correct:
+- operator registers the plugin; `.status.pluginStatus` lists it **with**
+  `TYPE_INSTANCE_SIDECAR_INJECTION`;
+- cluster `.spec.plugins` opts in (`enabled, isWALArchiver, barmanObjectName`);
+- versions aligned: operator `1.29.1` ↔ plugin `v0.12.0` (api `v1.29.0`);
+- no errors logged; pods (even freshly rolled) come up with only the `postgres`
+  container.
+
+A real bring-up race *was* found and fixed: the operator (sync-wave −1) started before
+cert-manager issued `barman-cloud-server-tls`, cached a `connection refused` to the
+plugin, and never reconnected → `kubectl rollout restart deploy/cloudnative-pg -n
+cnpg-system` fixed the connection (plugin now `Registered`, pluginStatus populated).
+But injection **still** doesn't fire after that — so the remaining issue is a
+**#8755-class operator↔plugin interaction**, not our config.
+
+Verify state quickly:
+```sh
+kubectl -n cartarch get cluster cartarch-pg -o jsonpath='{.status.pluginStatus}{"\n"}'
+kubectl -n cartarch get pod cartarch-pg-1 -o jsonpath='{.spec.containers[*].name}{"\n"}'  # want: postgres plugin-barman-cloud
+```
+
+Resume avenues (see platform `current-status.md`): file/search a CNPG issue with this
+exact signature (ref cloudnative-pg#8755); inspect the `cloudnative-pg` Helm chart /
+`cnpg-controller-manager-config` for a plugin/injection enablement (empty
+`includePlugins` is the one config smell left); or fall back to native VolumeSnapshot
+base backups while keeping the plugin only for WAL archiving.
+
 ## Hand-off to the v4 app build (Workstream A — NOT part of this runbook)
 
 Once the cluster is healthy and the restore test passes:
