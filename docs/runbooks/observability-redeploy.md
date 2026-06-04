@@ -42,7 +42,9 @@ are the most useful part of this runbook.
    PVC size or annotations after the first sync cannot be done in place. The
    supported fix: delete the StatefulSet (the prometheus-operator recreates it
    from the Prometheus CR within seconds) and delete the orphaned PVC, then let
-   the new template apply.
+   the new template apply. **For a size GROW specifically, do NOT use that
+   destructive path — it deletes the PVC and loses all metrics history.** Grow
+   the existing PVC online instead; see the 2026-06-04 incident below.
 
 3. **The Grafana admin Secret is hand-created and not in Git.** `values.yaml`
    references `grafana.admin.existingSecret: grafana-admin-credentials`. That
@@ -163,6 +165,57 @@ the Application went `Synced / Healthy`.
 Confirmed Prometheus held metrics, deleted the Prometheus pod, waited for the
 reschedule, and confirmed pre-restart data was still present. This is the proof
 the `emptyDir` problem is gone — the old install could not have survived this.
+
+## Incident — Prometheus PV filling up (2026-06-04)
+
+**Alert:** `KubePersistentVolumeFillingUp`, namespace `observability`, PVC
+`prometheus-kube-prometheus-stack-prometheus-db-...-0`, ~4 days to full, 12% free.
+(Fired twice — same PVC double-reported by two kubelet ServiceMonitors; one
+problem, not two.)
+
+**Root cause:** `retention: 10d` is **age-only**. With no size backstop, 10 days
+of 4-node metrics (~7Gi of blocks + ~0.6Gi WAL) grew past the 8Gi volume and hit
+92% *before* the 10d prune ever ran. The original `values.yaml` comment calling
+8Gi "generous for 10d" was simply wrong.
+
+**Fix (commit `bd63ac4`, `values.yaml`):**
+- Added **`retentionSize: 11GiB`** under `prometheus.prometheusSpec` — a hard cap
+  so Prometheus drops oldest blocks before the disk can fill, regardless of
+  future ingest. This is the durable fix; `retention:10d` alone should never be
+  trusted to bound disk on a fixed volume.
+- Grew the volume **8Gi → 16Gi** so the cap sits comfortably below the volume
+  (cap must be < volume size, with room for WAL + compaction scratch — an 11GiB
+  cap on an 8Gi disk is useless).
+
+**The operator-resize quirk (the part to remember):** bumping `storage:` in
+`values.yaml` and syncing is **NOT enough to grow an existing volume.** The
+operator (v0.90.1) updated its StatefulSet template to 16Gi (logged
+`recreating StatefulSet because the update operation wasn't possible` — STS
+templates are immutable, so it orphan-recreates the STS), but it does **not**
+resize the already-bound PVC. That left the live PVC at 8Gi while git/CR/STS all
+said 16Gi. The PVC must be patched by hand — Longhorn (`allowVolumeExpansion=true`)
+then expands the filesystem online, mounted, no downtime, no data loss:
+
+```
+kubectl patch pvc -n observability \
+  prometheus-kube-prometheus-stack-prometheus-db-prometheus-kube-prometheus-stack-prometheus-0 \
+  -p '{"spec":{"resources":{"requests":{"storage":"16Gi"}}}}'
+```
+
+Expansion completed in ~20s; `df -h /prometheus` went 8Gi→16Gi and free space
+12%→56% once kubelet re-stated the volume (the `kubelet_volume_stats` metric lags
+the real `df` by a scrape cycle, so the alert keeps firing on a stale value for
+~1 min after the resize — wait for it before assuming the fix failed). Alert
+cleared on its own; Alertmanager sent a resolved email (`send_resolved: true`).
+
+**No ArgoCD drift:** the manual PVC patch and git now both say 16Gi, and ArgoCD
+does not manage operator-created PVCs directly, so it won't fight the patch.
+
+**Checklist for any future Prometheus volume grow:**
+1. Edit `storage:` in `values.yaml`, commit, push, let ArgoCD sync.
+2. `kubectl patch pvc ...` to the same size (the required manual step above).
+3. Confirm with `df -h /prometheus` inside the pod, not the kubelet metric.
+4. Keep `retentionSize` < the new volume size.
 
 ## Open follow-ups
 
