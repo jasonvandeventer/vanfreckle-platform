@@ -9,14 +9,24 @@
 prometheus:
   prometheusSpec:
     retention: 10d
+    # Hard size cap (added 2026-06-04). retention:10d alone is age-only -- with no
+    # size backstop the TSDB filled the 8Gi volume to 92% before the 10d prune ever
+    # ran (10d of 4-node metrics is ~7Gi of blocks + ~0.6Gi WAL, NOT "generous" as
+    # the old comment claimed), firing KubePersistentVolumeFillingUp. retentionSize
+    # makes Prometheus drop the oldest blocks once they exceed 11GiB, so the disk
+    # can never fill regardless of future ingest growth. 11GiB sits below the 16Gi
+    # volume to leave room for the WAL + compaction scratch (compaction can briefly
+    # ~2x the largest block being merged).
+    retentionSize: 11GiB
     # Durable TSDB on Longhorn. The manual install used emptyDir, so metrics were
     # wiped on every pod restart (4x already). This is the actual latent fix --
     # without it, the redeploy would faithfully reproduce the original problem.
     #
-    # Sizing: 8Gi is generous for 10d of 4-node metrics. The Longhorn capacity
-    # wall that originally forced it small (40G VMs, ~34G usable) was resolved
-    # 2026-05-28 (VM disks grown to 100G; ~195Gi free), so 8Gi can be grown
-    # online whenever wanted.
+    # Sizing: grown 8Gi -> 16Gi 2026-06-04 (the 8Gi the prior comment called
+    # "generous" actually fit only ~10-11d at 92% full with zero headroom). Longhorn
+    # has allowVolumeExpansion=true and operator v0.90.1 auto-resizes the existing
+    # PVC online when this request grows -- no manual PVC patch / orphan-delete
+    # needed. ~195Gi free across the 4 nodes, so 16Gi is comfortable.
     #
     # Replica count: this volume runs at the `longhorn` StorageClass default of
     # 3 replicas. A prior `longhorn.io/replica-count: "1"` PVC annotation was
@@ -32,7 +42,7 @@ prometheus:
           accessModes: ["ReadWriteOnce"]
           resources:
             requests:
-              storage: 8Gi
+              storage: 16Gi
 
 grafana:
   # Grafana runs on an ephemeral emptyDir DB by deliberate choice (2026-05-29).
