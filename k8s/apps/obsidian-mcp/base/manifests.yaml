@@ -69,7 +69,7 @@ spec:
           volumeMounts:
             - name: vault
               mountPath: /vault
-              readOnly: true
+              readOnly: false
           resources:
             requests:
               cpu: 50m
@@ -86,7 +86,7 @@ spec:
         - name: vault
           persistentVolumeClaim:
             claimName: obsidian-vault-nfs
-            readOnly: true
+            readOnly: false
 ---
 # Service
 apiVersion: v1
