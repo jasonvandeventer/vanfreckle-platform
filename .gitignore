@@ -7,5 +7,20 @@ cluster-layout.md
 observability.md
 roadmap.md
 
+# More vault-structure planning docs that leaked in via a broad `git add` (2026-06-08).
+# Same rationale as the symlinked docs above: canonical home is ~/lab/ai-context/, NOT this
+# GitOps repo — these are planning notes, not manifests. The vault copies are authoritative
+# (and newer); the copies here are stale leftovers.
+/homelab-audit-findings-2026-06-04.md
+/rebuild-candidates-and-audit-plan-2026-06-04.md
+/cockpit-dashboard-future-project-2026-06-04.md
+/homelab/
+/devsecops/
+
+# AWS CLI v2 installer accidentally extracted into the repo (~333 MB). Belongs outside any
+# repo (install to the host, not here). Never commit vendored CLI binaries to a GitOps repo.
+/aws/
+/awscliv2.zip
+
 # Claude Code local settings
 .claude/
