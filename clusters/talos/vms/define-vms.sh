@@ -30,7 +30,7 @@ template_for() { case "$1" in
 esac }
 
 make_vm() {  # $1=name $2=ram_mib
-  local name="$1" ram="$2" dir="$VM_DISK_DIR/$1" tmpl byid="" out="/tmp/$1.xml"
+  local name="$1" ram="$2" vcpus="$3" dir="$VM_DISK_DIR/$1" tmpl byid="" out="/tmp/$1.xml"
   tmpl="$(template_for "$name")"
   mkdir -p "$dir"
 
@@ -59,17 +59,17 @@ make_vm() {  # $1=name $2=ram_mib
   fi
 
   sed -e "s|__NAME__|$name|g" -e "s|__RAM_MIB__|$ram|g" \
-      -e "s|__VCPUS__|$VCPUS|g" -e "s|__DISK_DIR__|$VM_DISK_DIR|g" \
+      -e "s|__VCPUS__|$vcpus|g" -e "s|__DISK_DIR__|$VM_DISK_DIR|g" \
       -e "s|__BRIDGE__|$UNRAID_BRIDGE|g" -e "s|__SATA_BYID__|$byid|g" \
       "$tmpl" > "$out"
   virsh define "$out"
-  echo "defined: $name (${ram}MiB, ${VCPUS}vcpu) from $(basename "$tmpl")"
+  echo "defined: $name (${ram}MiB, ${vcpus}vcpu) from $(basename "$tmpl")"
 }
 
-make_vm "$NODE1_NAME" "$CP_RAM_MIB"       # cp1
-make_vm "$NODE2_NAME" "$CP_RAM_MIB"       # cp2
-make_vm "$NODE3_NAME" "$CP_RAM_MIB"       # cp3
-make_vm "$NODE4_NAME" "$WORKER_RAM_MIB"   # worker1
+make_vm "$NODE1_NAME" "$CP_RAM_MIB"     "$CP_VCPUS"      # cp1
+make_vm "$NODE2_NAME" "$CP_RAM_MIB"     "$CP_VCPUS"      # cp2
+make_vm "$NODE3_NAME" "$CP_RAM_MIB"     "$CP_VCPUS"      # cp3
+make_vm "$NODE4_NAME" "$WORKER_RAM_MIB" "$WORKER_VCPUS"  # worker1
 
 cat <<EOF
 

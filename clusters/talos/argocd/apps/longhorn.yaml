@@ -30,8 +30,12 @@ spec:
           storageMinimalAvailablePercentage: 15
           concurrentReplicaRebuildPerNodeLimit: 1    # cheap insurance vs. cp2 NVMe contention
           concurrentAutomaticEngineUpgradePerNodeLimit: 1
-          # R2 volume-snapshot DR — the recoverability FLOOR beneath replica-3.
-          backupTarget: "s3://CHANGE_ME-bucket@auto/"   # 🅵 set R2 bucket@region
+          # 🛑🛑 PHASE-7 FILL-IN, NON-OPTIONAL — this is the R2 DR FLOOR beneath replica-3.
+          #      Replica-3 buys uptime through a drive failure; R2 buys recovery from total
+          #      cluster loss. Do NOT let this CHANGE_ME ride past apply — a cluster with no
+          #      backupTarget has NO off-cluster recovery. Set the real R2 bucket@region +
+          #      ensure the longhorn-r2-secret SealedSecret is restored (reused from old cluster).
+          backupTarget: "s3://CHANGE_ME-bucket@auto/"        # 🛑 set R2 bucket@region before apply
           backupTargetCredentialSecret: longhorn-r2-secret   # reused SealedSecret (k8s/secrets/)
         persistence:
           defaultClass: false        # longhorn-ssd (longhorn-config.yaml) is the default instead

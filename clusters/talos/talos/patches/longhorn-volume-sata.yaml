@@ -1,0 +1,31 @@
+# Phase-4 Patch A (SATA variant) — longhorn-volume  (worker1 + cp3 ONLY)
+# ─────────────────────────────────────────────────────────────────────────────
+# For the two nodes whose Longhorn disk is a PASSED-THROUGH ~500 GB SATA SSD.
+# Doc 1: Longhorn ssd disk-tag node labels/annotations (identical across all storage nodes).
+# Doc 2: UserVolumeConfig mounting that disk at /var/mnt/longhorn.
+#
+# diskSelector — tightened from the old blanket "!system_disk" to an explicit
+# transport+size match (review item #4): pick the physical ~500 GB SATA device, never
+# the NVMe system disk. Robust to the ata-vs-sata transport-string ambiguity by
+# excluding nvme/virtio rather than asserting one ATA spelling:
+#   - !system_disk            : never the OS disk
+#   - transport != nvme/virtio: a physical SATA/ATA/SCSI device, not the NVMe/virtio sys disk
+#   - size > 400 GB           : the ~500 GB SSD, not the 15 GB system disk
+# 🅵 Confirm at Phase-3 disk checkpoint: `talosctl get disks` (expect one ~500 GB ATA device).
+machine:
+  nodeLabels:
+    node.longhorn.io/create-default-disk: "config"
+  nodeAnnotations:
+    node.longhorn.io/default-disks-config: |
+      [{"path":"/var/mnt/longhorn","allowScheduling":true,"tags":["ssd"]}]
+---
+apiVersion: v1alpha1
+kind: UserVolumeConfig
+name: longhorn
+provisioning:
+  diskSelector:
+    match: "!system_disk && disk.transport != 'nvme' && disk.transport != 'virtio' && disk.size > 400u * GB"
+  minSize: 10GiB
+  grow: true            # claim the whole SATA SSD
+filesystem:
+  type: xfs

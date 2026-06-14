@@ -28,7 +28,7 @@ util-linux-tools + qemu-guest-agent).
 | Node | IP | Role | Longhorn disk |
 |---|---|---|---|
 | cp1 | 10.42.1.60 | control-plane | **none** (lean: bootstrap + VIP holder; one clean quorum node) |
-| cp2 | 10.42.1.61 | control-plane | ~80 GB **NVMe-cache-pool vdisk** (virtio) |
+| cp2 | 10.42.1.61 | control-plane | 50 GB **NVMe-cache-pool vdisk** (virtio) |
 | cp3 | 10.42.1.62 | control-plane | **SATA passthrough** 850 EVO (by-id) |
 | worker1 | 10.42.1.63 | worker | **SATA passthrough** MX500 (by-id) |
 
@@ -45,7 +45,8 @@ talos/
   patches/
     common.yaml                 ← base (install.disk=/dev/vda, hostDNS) — all nodes, at gen time
     cp-schedule.yaml            ← Patch 0: allowSchedulingOnControlPlanes (CP nodes)
-    longhorn-volume.yaml        ← Patch A: UserVolumeConfig→/var/mnt/longhorn + ssd disk-tag (worker1/cp3/cp2)
+    longhorn-volume-sata.yaml   ← Patch A: UserVolume→/var/mnt/longhorn + ssd tag, transport/size selector (worker1/cp3)
+    longhorn-volume-nvme.yaml   ← Patch A: same, !system_disk selector for cp2's NVMe vdisk
     longhorn-kubelet.yaml       ← Patch B: kubelet extraMount + sysctls (worker1/cp3/cp2)
     vip-patch.template.yaml     ← Patch C: per-node static IP + VIP + NTP (rendered per node)
     disk-cache.README.md        ← Patch D: VM-layer cache='none' (documented; lives in vms/*.xml)

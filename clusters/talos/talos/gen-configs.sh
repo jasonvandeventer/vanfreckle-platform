@@ -75,7 +75,13 @@ assemble() {  # $1=name $2=ip $3=role
   [[ "$role" == "controlplane" ]] && patches+=( "$P/cp-schedule.yaml" )
   patches+=( "$OUT/vip-$name.yaml" )
   if is_storage "$name"; then
-    patches+=( "$P/longhorn-volume.yaml" "$P/longhorn-kubelet.yaml" )
+    # SATA-passthrough nodes (worker1/cp3) get the transport+size selector;
+    # cp2's NVMe vdisk uses the !system_disk variant.
+    case "$name" in
+      cp2) patches+=( "$P/longhorn-volume-nvme.yaml" );;
+      *)   patches+=( "$P/longhorn-volume-sata.yaml" );;
+    esac
+    patches+=( "$P/longhorn-kubelet.yaml" )
   fi
 
   local args=(); for p in "${patches[@]}"; do args+=( --patch "@$p" ); done
