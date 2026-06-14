@@ -1,0 +1,16 @@
+# app-of-apps target — the `root` Application (../bootstrap/root-app.yaml) syncs this
+# directory. It contains ONLY child Application CRs (no workload manifests); each app
+# points at a Helm chart or at clusters/talos/manifests/**.
+#
+# Deferred (NOT in this skeleton, by scope): observability (kube-prometheus-stack +
+# Loki — build as its own focused session per guide Phase 8), cloudflared side-door
+# tunnel, Image Updater, and the Cartarch + CNPG *Cluster* apps (Phase 9 stop-point).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: argocd
+resources:
+  - namespaces.yaml
+  - sealed-secrets.yaml
+  - longhorn.yaml
+  - longhorn-config.yaml
+  - cnpg-operator.yaml

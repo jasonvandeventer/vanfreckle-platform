@@ -1,0 +1,21 @@
+# Default StorageClass pinning replicas to the ssd-tagged disks (worker1 + cp3 + cp2).
+# diskSelector "ssd" matches the disk tag set by the Talos longhorn-volume patch
+# (node.longhorn.io/default-disks-config tags:["ssd"]). numberOfReplicas "3" = the
+# UPDATE 2026-06-13b topology. This is THE default class (the chart's own default is
+# disabled in longhorn.yaml), so a PVC with no storageClassName lands here.
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: longhorn-ssd
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
+provisioner: driver.longhorn.io
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+parameters:
+  numberOfReplicas: "3"
+  diskSelector: "ssd"           # replicas only land on ssd-tagged disks (the 3 storage nodes)
+  staleReplicaTimeout: "30"
+  fsType: "ext4"
+  dataLocality: "disabled"      # 3 replicas on 3 distinct nodes — no local-affinity skew

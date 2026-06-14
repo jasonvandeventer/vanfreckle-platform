@@ -1,0 +1,47 @@
+# Longhorn 1.11.2 (storage topology = UPDATE 2026-06-13b: replica-3 across the three
+# ssd-tagged disks on worker1 + cp3 + cp2; cp1 has no Longhorn disk).
+# ─────────────────────────────────────────────────────────────────────────────
+# Disk tagging + placement are split across two mechanisms:
+#   1. Talos machine config (longhorn-volume.yaml patch) labels worker1/cp3/cp2 with
+#      node.longhorn.io/create-default-disk=config and annotates the disk tag "ssd".
+#   2. createDefaultDiskLabeledNodes:true here means Longhorn creates a default disk
+#      ONLY on those labeled nodes (so cp1 NEVER gets one on its system disk).
+#   3. The longhorn-ssd StorageClass (longhorn-config.yaml) pins replicas to diskSelector
+#      "ssd". The chart's own default class is disabled so longhorn-ssd is THE default.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: longhorn
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: default
+  source:
+    repoURL: https://charts.longhorn.io
+    chart: longhorn
+    targetRevision: 1.11.2
+    helm:
+      valuesObject:
+        defaultSettings:
+          defaultDataPath: /var/mnt/longhorn        # 🛑 MUST equal the UserVolume mount
+          defaultReplicaCount: 3
+          createDefaultDiskLabeledNodes: true        # only labeled nodes get a Longhorn disk
+          storageMinimalAvailablePercentage: 15
+          concurrentReplicaRebuildPerNodeLimit: 1    # cheap insurance vs. cp2 NVMe contention
+          concurrentAutomaticEngineUpgradePerNodeLimit: 1
+          # R2 volume-snapshot DR — the recoverability FLOOR beneath replica-3.
+          backupTarget: "s3://CHANGE_ME-bucket@auto/"   # 🅵 set R2 bucket@region
+          backupTargetCredentialSecret: longhorn-r2-secret   # reused SealedSecret (k8s/secrets/)
+        persistence:
+          defaultClass: false        # longhorn-ssd (longhorn-config.yaml) is the default instead
+          defaultClassReplicaCount: 3
+          defaultFsType: ext4
+        # Longhorn manager/ui run privileged — namespace is labeled privileged (namespaces app).
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: longhorn-system
+  # manual sync — no automated block (see root-app.yaml)
+  syncPolicy:
+    syncOptions:
+      - ApplyOutOfSyncOnly=true
