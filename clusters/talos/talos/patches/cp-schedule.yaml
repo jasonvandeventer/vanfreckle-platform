@@ -1,0 +1,14 @@
+# Phase-4 Patch 0 — cp-schedule  (CONTROL-PLANE nodes: cp1, cp2, cp3)
+# ─────────────────────────────────────────────────────────────────────────────
+# Talos taints control-plane nodes node-role.kubernetes.io/control-plane:NoSchedule
+# by default. cp2 AND cp3 each carry a Longhorn replica (UPDATE 2026-06-13b), so
+# without lifting the taint the storage topology silently collapses to the single
+# worker and replica-3 can never satisfy itself — invisible until the DR drill fails.
+#
+# Applied to ALL THREE control-plane nodes (cp1 included: harmless there, and keeps
+# the CP base uniform). NOT applied to worker1 — `cluster.*` is ignored by workers.
+# Verify after bootstrap (Phase 5):
+#   kubectl get nodes -o json | jq '.items[]|{name:.metadata.name,taints:.spec.taints}'
+#   → expect NO control-plane:NoSchedule taint on any node.
+cluster:
+  allowSchedulingOnControlPlanes: true

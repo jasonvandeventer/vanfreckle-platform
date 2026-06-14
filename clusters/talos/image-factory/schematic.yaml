@@ -1,0 +1,10 @@
+# Image Factory schematic — POST this to https://factory.talos.dev/schematics
+# All three extensions are REQUIRED at install time (cannot be added post-install):
+#   iscsi-tools + util-linux-tools → Longhorn hard requirements
+#   qemu-guest-agent              → clean shutdown/IP reporting under libvirt/Unraid
+customization:
+  systemExtensions:
+    officialExtensions:
+      - siderolabs/iscsi-tools
+      - siderolabs/util-linux-tools
+      - siderolabs/qemu-guest-agent

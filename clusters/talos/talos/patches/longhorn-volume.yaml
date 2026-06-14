@@ -1,0 +1,42 @@
+# Phase-4 Patch A — longhorn-volume  (STORAGE nodes ONLY: worker1, cp3, cp2)
+# ─────────────────────────────────────────────────────────────────────────────
+# 🛑 NOT applied to cp1 — cp1 is storage-free (no second disk). Applying this to a
+#    node without a matching non-system disk would fail provisioning / try to place
+#    storage on the system disk.
+#
+# Two documents:
+#   1. machine.nodeLabels/nodeAnnotations — tells Longhorn to auto-create its default
+#      disk at /var/mnt/longhorn AND tag it "ssd". Combined with Longhorn's
+#      `createDefaultDiskLabeledNodes: true` (see argocd/apps Longhorn values), ONLY
+#      these labeled nodes get a Longhorn disk — cp1 (unlabeled) gets none. The
+#      diskSelector "ssd" on the StorageClass then pins all 3 replicas to these disks.
+#   2. UserVolumeConfig — partitions + mounts the second disk at /var/mnt/longhorn
+#      (the Talos v1.10+ user-volume path; NOT the legacy /var/lib/longhorn).
+#
+# Per-node second disk this matches (exactly ONE non-system disk on each):
+#   worker1 → MX500  SATA SSD (passthrough by-id)
+#   cp3     → 850 EVO SATA SSD (passthrough by-id)
+#   cp2     → ~80 GB NVMe-cache-pool vdisk (virtio)
+# `!system_disk` is unambiguous here because each storage VM has exactly one extra
+# disk. 🅵 At apply, confirm with `talosctl get disks` and (optionally, per the
+# addendum) tighten to a size/transport match, e.g.
+#   match: "!system_disk && disk.transport == 'ata'"   # SATA passthrough nodes
+#   match: "!system_disk && disk.transport == 'virtio'" # cp2 NVMe vdisk
+machine:
+  nodeLabels:
+    node.longhorn.io/create-default-disk: "config"
+  nodeAnnotations:
+    # JSON array consumed by Longhorn when create-default-disk=config. Tags the disk "ssd".
+    node.longhorn.io/default-disks-config: |
+      [{"path":"/var/mnt/longhorn","allowScheduling":true,"tags":["ssd"]}]
+---
+apiVersion: v1alpha1
+kind: UserVolumeConfig
+name: longhorn
+provisioning:
+  diskSelector:
+    match: "!system_disk"
+  minSize: 10GiB
+  grow: true            # claim the whole second disk
+filesystem:
+  type: xfs

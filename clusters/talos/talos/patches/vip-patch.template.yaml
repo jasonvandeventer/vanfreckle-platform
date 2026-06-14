@@ -1,0 +1,30 @@
+# Phase-4 Patch C — vip-patch (TEMPLATE)  (ALL nodes; gen-configs.sh renders one per node)
+# ─────────────────────────────────────────────────────────────────────────────
+# Substituted per node: __HOSTNAME__ __NODE_IP__ __CIDR__ __GATEWAY__ __VIP__ __NAMESERVER__
+# The shared API VIP (__VIP__ = 10.42.1.64) is a CONTROL-PLANE-ONLY floating address —
+# gen-configs.sh STRIPS the `vip:` block when rendering worker1, so the worker keeps a
+# plain static IP and never advertises the VIP. NTP is set so etcd/TLS clocks stay sane.
+#
+# deviceSelector(physical: true) is used instead of a hardcoded eth0/enp1s0 so the patch
+# is NIC-name-agnostic. 🅵 Confirm the node has exactly one physical NIC at Phase-3
+# checkpoint (`talosctl -n <ip> get links`); if multiple, pin by MAC/bus instead.
+machine:
+  network:
+    hostname: __HOSTNAME__
+    interfaces:
+      - deviceSelector:
+          physical: true
+        dhcp: false
+        addresses:
+          - __NODE_IP__/__CIDR__
+        routes:
+          - network: 0.0.0.0/0
+            gateway: __GATEWAY__
+        # vip: CONTROL-PLANE NODES ONLY — gen-configs.sh removes this block for the worker.
+        vip:
+          ip: __VIP__
+    nameservers:
+      - __NAMESERVER__
+  time:
+    servers:
+      - time.cloudflare.com   # or your LAN NTP; etcd is clock-sensitive
