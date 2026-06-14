@@ -1,0 +1,61 @@
+<!-- ════════════════════════════════════════════════════════════════════════
+     cp2 — control-plane + THIRD Longhorn replica on an NVMe-cache-pool vdisk
+     (UPDATE 2026-06-13b). NOT passthrough — a plain qcow/raw vdisk on the same
+     NVMe as cp2's system/etcd disk, so this RE-INTRODUCES partial NVMe contention
+     on cp2 (watch cp2 etcd fsync p99 after cutover).
+     Substituted by define-vms.sh: __NAME__ __RAM_MIB__ __VCPUS__ __DISK_DIR__ __BRIDGE__
+     🛑 BOTH disks cache='none' — system disk for etcd; data disk because it shares the
+        device with etcd.
+     ════════════════════════════════════════════════════════════════════════ -->
+<domain type='kvm'>
+  <name>__NAME__</name>
+  <memory unit='MiB'>__RAM_MIB__</memory>
+  <vcpu placement='static'>__VCPUS__</vcpu>
+  <os>
+    <type arch='x86_64' machine='q35'>hvm</type>
+    <loader readonly='yes' type='pflash'>/usr/share/qemu/ovmf-x64/OVMF_CODE-pure-efi.fd</loader>
+    <nvram>/etc/libvirt/qemu/nvram/__NAME___VARS-pure-efi.fd</nvram>
+    <boot dev='cdrom'/>
+    <boot dev='hd'/>
+  </os>
+  <features><acpi/><apic/></features>
+  <cpu mode='host-passthrough' check='none'/>
+  <clock offset='utc'/>
+  <on_reboot>restart</on_reboot>
+  <devices>
+    <emulator>/usr/local/sbin/qemu</emulator>
+    <!-- system disk: virtio /dev/vda on the NVMe cache pool. cache='none' for etcd. -->
+    <disk type='file' device='disk'>
+      <driver name='qemu' type='raw' cache='none' discard='unmap'/>
+      <source file='__DISK_DIR__/__NAME__/system.img'/>
+      <target dev='vda' bus='virtio'/>
+    </disk>
+    <!-- Longhorn data disk: virtio /dev/vdb — ~80 GB vdisk on the NVMe cache pool.
+         UserVolumeConfig (!system_disk) mounts it at /var/mnt/longhorn. -->
+    <disk type='file' device='disk'>
+      <driver name='qemu' type='raw' cache='none' discard='unmap'/>
+      <source file='__DISK_DIR__/__NAME__/longhorn.img'/>
+      <target dev='vdb' bus='virtio'/>
+    </disk>
+    <!-- Talos install ISO (first boot only). Eject after Talos installs to vda;
+         the eject command is printed by define-vms.sh. -->
+    <disk type='file' device='cdrom'>
+      <driver name='qemu' type='raw'/>
+      <source file='__DISK_DIR__/talos-metal-amd64.iso'/>
+      <target dev='sda' bus='sata'/>
+      <readonly/>
+    </disk>
+    <interface type='bridge'>
+      <source bridge='__BRIDGE__'/>
+      <model type='virtio'/>
+    </interface>
+    <channel type='unix'>
+      <target type='virtio' name='org.qemu.guest_agent.0'/>
+    </channel>
+    <serial type='pty'><target port='0'/></serial>
+    <console type='pty'><target type='serial' port='0'/></console>
+    <video><model type='qxl'/></video>
+    <graphics type='vnc' port='-1' autoport='yes' listen='0.0.0.0'/>
+    <memballoon model='virtio'/>
+  </devices>
+</domain>
