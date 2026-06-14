@@ -4,9 +4,15 @@
 # disk topology of UPDATE 2026-06-13b. Idempotent-ish: skips disks/domains that exist.
 # This DEFINES VMs in libvirt; it does NOT start them and does NOT touch any cluster.
 #
+# DRY_RUN=1 → validate-only: renders + xmllint-checks each VM XML, confirms the SATA
+#   by-id guards, and defines NOTHING / creates no disk images / never calls virsh define.
+#   Safe to run on any host (e.g. Nobara) where the SATA drives are NOT yet present — it
+#   reports the by-id guard as "would pass on the target host" instead of hard-failing.
+#   Usage:  DRY_RUN=1 ./vms/define-vms.sh
+#
 # Per-node hardware (templates in this dir):
 #   cp1     → talos-cp1-lean      : system disk only (STORAGE-FREE)
-#   cp2     → talos-cp2-nvme      : system + ~80 GB NVMe-cache-pool Longhorn vdisk
+#   cp2     → talos-cp2-nvme      : system + 50 GB NVMe-cache-pool Longhorn vdisk
 #   cp3     → talos-cp3-sata      : system + passed-through SATA SSD (850 EVO) by-id
 #   worker1 → talos-worker1-sata  : system + passed-through SATA SSD (MX500)  by-id
 #
@@ -20,6 +26,8 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 source ./cluster.env
+DRY_RUN="${DRY_RUN:-0}"
+[[ "$DRY_RUN" == 1 ]] && echo "── DRY_RUN: validate only — no disks created, no VMs defined ──"
 
 template_for() { case "$1" in
   cp1)     echo "vms/talos-cp1-lean.template.xml";;
@@ -32,17 +40,17 @@ esac }
 make_vm() {  # $1=name $2=ram_mib
   local name="$1" ram="$2" vcpus="$3" dir="$VM_DISK_DIR/$1" tmpl byid="" out="/tmp/$1.xml"
   tmpl="$(template_for "$name")"
-  mkdir -p "$dir"
 
-  # System disk for every node.
-  [[ -f "$dir/system.img" ]] || qemu-img create -f raw "$dir/system.img" "${SYSTEM_DISK_GB}G"
-
-  # cp2 ONLY: the NVMe-cache-pool Longhorn vdisk.
-  if [[ "$name" == "cp2" ]]; then
-    [[ -f "$dir/longhorn.img" ]] || qemu-img create -f raw "$dir/longhorn.img" "${CP2_LONGHORN_VDISK_GB}G"
+  # Disk images — skipped entirely in DRY_RUN (no writes anywhere).
+  if [[ "$DRY_RUN" != 1 ]]; then
+    mkdir -p "$dir"
+    [[ -f "$dir/system.img" ]] || qemu-img create -f raw "$dir/system.img" "${SYSTEM_DISK_GB}G"
+    if [[ "$name" == "cp2" ]]; then
+      [[ -f "$dir/longhorn.img" ]] || qemu-img create -f raw "$dir/longhorn.img" "${CP2_LONGHORN_VDISK_GB}G"
+    fi
   fi
 
-  # cp3 / worker1: SATA passthrough — bail if the by-id is still the TODO sentinel.
+  # cp3 / worker1: SATA passthrough guard.
   if [[ "$name" == "cp3" || "$name" == "worker1" ]]; then
     [[ "$name" == "cp3" ]] && byid="$CP3_SATA_BYID" || byid="$WORKER1_SATA_BYID"
     if [[ "$byid" == *TODO* ]]; then
@@ -51,10 +59,17 @@ make_vm() {  # $1=name $2=ram_mib
       echo "     and set the real path. (USB-bridge id is WRONG — do not use it.)"
       return 0
     fi
-    [[ -b "$byid" ]] || { echo "ERROR $name: $byid is not a block device on this host"; return 1; }
+    if [[ -b "$byid" ]]; then
+      echo "$name: SATA by-id guard PASS — $byid present as a block device."
+    elif [[ "$DRY_RUN" == 1 ]]; then
+      echo "$name: SATA by-id guard would PASS on target host (sentinel cleared: $byid)"
+      echo "        — not a block device on THIS validation host (expected; the drive lives on VanFreckleServ)."
+    else
+      echo "ERROR $name: $byid is not a block device on this host"; return 1
+    fi
   fi
 
-  if virsh dominfo "$name" &>/dev/null; then
+  if [[ "$DRY_RUN" != 1 ]] && virsh dominfo "$name" &>/dev/null; then
     echo "exists: $name (already defined)"; return 0
   fi
 
@@ -62,6 +77,17 @@ make_vm() {  # $1=name $2=ram_mib
       -e "s|__VCPUS__|$vcpus|g" -e "s|__DISK_DIR__|$VM_DISK_DIR|g" \
       -e "s|__BRIDGE__|$UNRAID_BRIDGE|g" -e "s|__SATA_BYID__|$byid|g" \
       "$tmpl" > "$out"
+
+  if [[ "$DRY_RUN" == 1 ]]; then
+    command -v xmllint >/dev/null && { xmllint --noout "$out" && echo "  XML well-formed: $out"; }
+    if [[ -n "$byid" ]]; then
+      grep -q -- "$byid" "$out" && echo "  by-id RESOLVED in XML: $byid" \
+        || { echo "  ERROR: by-id NOT resolved in $out"; return 1; }
+    fi
+    echo "DRY-RUN rendered (NOT defined): $name (${ram}MiB, ${vcpus}vcpu) from $(basename "$tmpl")"
+    return 0
+  fi
+
   virsh define "$out"
   echo "defined: $name (${ram}MiB, ${vcpus}vcpu) from $(basename "$tmpl")"
 }
