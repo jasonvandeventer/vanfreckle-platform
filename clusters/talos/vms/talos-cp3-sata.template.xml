@@ -17,7 +17,7 @@
   <os>
     <type arch='x86_64' machine='q35'>hvm</type>
     <loader readonly='yes' type='pflash'>/usr/share/qemu/ovmf-x64/OVMF_CODE-pure-efi.fd</loader>
-    <nvram>/etc/libvirt/qemu/nvram/__NAME___VARS-pure-efi.fd</nvram>
+    <nvram template='/usr/share/qemu/ovmf-x64/OVMF_VARS-pure-efi.fd'>/etc/libvirt/qemu/nvram/__NAME___VARS-pure-efi.fd</nvram>
     <boot dev='cdrom'/>
     <boot dev='hd'/>
   </os>
