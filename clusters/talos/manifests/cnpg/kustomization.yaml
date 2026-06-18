@@ -1,11 +1,19 @@
 # CloudNativePG OPERATOR install — pinned 1.29.1 (HARD floor: CVE-2026-44477).
-# This is the upstream operator/controller manifest ONLY. It creates the cnpg-system
-# namespace, the CRDs (Cluster, Pooler, ScheduledBackup, …), RBAC, and the controller
-# Deployment. It does NOT create any database.
+# Controller/RBAC/webhooks/ConfigMap/Namespace ONLY. The 10 CRDs are split into
+# ../cnpg-crds (Application cnpg-crds, Replace=true, sync-wave 0). The clusters &
+# poolers CRDs are oversized and MUST NOT go through SSA: client-side apply overflows
+# the 256KiB last-applied annotation, and Argo SSA delete-recreates and can time out
+# (context deadline exceeded) leaving the CRD MISSING — happened 2026-06-18. Replace
+# (in-place whole-object write) is the only safe path. See phase9 vault note.
 #
-# 🛑 NO Cluster CR / database here — that is authored later, gated behind the v4
-#    migration stop-point (build guide Phase 9). See README.md.
+# UPGRADE (patch bump, stay >= 1.29.1): edit the pin below, then re-render + re-split:
+#   kubectl kustomize clusters/talos/manifests/cnpg > /tmp/cnpg-full.yaml   # NOTE: temporarily point resources: back at the release URL to render, OR render from the URL directly
+#   yq ea 'select(.kind=="CustomResourceDefinition")' /tmp/cnpg-full.yaml > ../cnpg-crds/cnpg-crds-<ver>.yaml
+#   yq ea 'select(.kind!="CustomResourceDefinition")' /tmp/cnpg-full.yaml > cnpg-operator-<ver>.yaml
+# then bump both filenames here and in ../cnpg-crds/kustomization.yaml.
+#
+# 🛑 No Cluster CR here — Phase 9 / v4 migration stop-point. See README.md.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  - https://raw.githubusercontent.com/cloudnative-pg/cloudnative-pg/release-1.29/releases/cnpg-1.29.1.yaml
+  - cnpg-operator-1.29.1.yaml
