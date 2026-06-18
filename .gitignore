@@ -40,3 +40,5 @@ kubeconfig-cartarch-prod
 /clusters/talos/talos/talosconfig
 # The pre-stage bundle zip is a build artifact, not source.
 /talos-prestage.zip
+backups/
+/talos.env
