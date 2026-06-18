@@ -4,7 +4,7 @@ metadata:
   name: cnpg-crds
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "0"      # CRDs before the operator that watches them
+    argocd.argoproj.io/sync-wave: "0"
 spec:
   project: default
   source:
@@ -16,4 +16,5 @@ spec:
     namespace: cnpg-system
   syncPolicy:
     syncOptions:
-      - Replace=true                        # oversized CRDs — in-place replace; SSA delete-recreate can time out and lose the CRD (2026-06-18 incident)
+      - ServerSideApply=true               # Argo runs `kubectl apply --server-side --force-conflicts` (the proven restore cmd) — no last-applied annotation (dodges 256KiB), no delete-recreate. NOT Replace: bug #7131, Replace re-triggers annotation + delete-recreate → deleted clusters/poolers twice 2026-06-18.
+      - SkipDryRunOnMissingResource=true
