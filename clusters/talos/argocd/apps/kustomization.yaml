@@ -14,3 +14,5 @@ resources:
   - longhorn.yaml
   - longhorn-config.yaml
   - cnpg-operator.yaml
+  - cert-manager-crds.yaml
+  - cert-manager.yaml

@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cert-manager-crds
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: default          # ← match sibling apps' .spec.project (confirm against longhorn.yaml)
+  source:
+    repoURL: https://github.com/jasonvandeventer/vanfreckle-platform.git
+    targetRevision: main
+    path: clusters/talos/manifests/cert-manager
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cert-manager
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+      - Replace=true
