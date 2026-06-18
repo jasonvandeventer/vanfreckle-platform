@@ -1,0 +1,9 @@
+# CNPG backup config — R2 SealedSecret cred + Barman-Cloud ObjectStore.
+# Separate from the operator app so backup-config changes don't re-sync the operator.
+# Synced by the cnpg-backup-config ArgoCD Application. serverName is set on the
+# Cluster (Phase 9), NOT here.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - cnpg-r2-creds.sealedsecret.yaml
+  - cnpg-objectstore.yaml

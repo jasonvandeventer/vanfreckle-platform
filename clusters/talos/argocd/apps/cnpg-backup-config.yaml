@@ -1,0 +1,19 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cnpg-backup-config
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"        # after operator (1) + plugin (2); the ObjectStore needs the plugin CRD
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/jasonvandeventer/vanfreckle-platform.git
+    targetRevision: main
+    path: clusters/talos/manifests/cnpg-backup-config
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cnpg-system
+  syncPolicy:
+    syncOptions:
+      - ServerSideApply=true

@@ -1,0 +1,30 @@
+# CNPG Barman-Cloud plugin ObjectStore — green's dedicated R2 backup target.
+# Bucket cartarch-cnpg-backups (CNPG Postgres ONLY; isolated from Longhorn's
+# cartarch-backups-talos and the flash crypt bucket — no shared buckets, see
+# backup-strategy.md). Cred: cnpg-r2-creds (SealedSecret, same dir, wave -2).
+# endpointURL is the R2 S3 API host (NOT secret). destinationPath is plain s3://bucket/
+# (the @auto region suffix is a Longhorn URL quirk, not used by the plugin).
+# serverName is INTENTIONALLY UNSET here — it is set on the Cluster's plugin
+# parameters at Phase 9, not on the ObjectStore (06-17 proving lesson).
+apiVersion: barmancloud.cnpg.io/v1
+kind: ObjectStore
+metadata:
+  name: cnpg-r2-store
+  namespace: cnpg-system
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"        # after the cred (-2), before any Cluster (Phase 9)
+spec:
+  configuration:
+    destinationPath: s3://cartarch-cnpg-backups/
+    endpointURL: https://99e379c3eabdfb70c6da73e35342de10.r2.cloudflarestorage.com
+    s3Credentials:
+      accessKeyId:
+        name: cnpg-r2-creds
+        key: AWS_ACCESS_KEY_ID
+      secretAccessKey:
+        name: cnpg-r2-creds
+        key: AWS_SECRET_ACCESS_KEY
+    wal:
+      compression: gzip
+    data:
+      compression: gzip
