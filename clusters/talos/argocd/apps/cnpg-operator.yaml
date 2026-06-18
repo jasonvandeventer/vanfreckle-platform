@@ -1,0 +1,25 @@
+# CloudNativePG OPERATOR ONLY — deploys with the cluster. The Cartarch database
+# Cluster CR is authored LATER, gated behind the v4 migration stop-point (Phase 9).
+# VERSION FLOOR IS HARD: 1.29.1 fixes CVE-2026-44477 (Critical 9.4, metrics exporter →
+# superuser escalation) + a failover data-safety bug. Never older.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cnpg-operator
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/jasonvandeventer/vanfreckle-platform.git
+    targetRevision: main
+    path: clusters/talos/manifests/cnpg
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cnpg-system
+  # manual sync — no automated block (see root-app.yaml)
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true   # CNPG CRDs are large — avoid last-applied-config annotation limits

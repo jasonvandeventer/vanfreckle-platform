@@ -1,0 +1,17 @@
+# argocd/bootstrap — applied ONCE BY HAND to the fresh Talos cluster:
+#   kubectl apply -k clusters/talos/argocd/bootstrap/
+# Everything after this is GitOps (manual-sync until verified — see root-app.yaml).
+#
+# ArgoCD pinned to v3.3.6 to MATCH the old k3s cluster (docs/inventory.md), so
+# blue/green behavior is identical. The pending 3.3.6 -> 3.3.10 hygiene bump
+# (docs/decisions/argocd-repo-hygiene.md) should be applied to BOTH clusters together.
+#
+# 🛑 BEFORE the sealed-secrets app syncs: restore the reused master key into the
+#    `sealed-secrets` namespace — see ../apps/SEALED-SECRETS-KEY-REUSE.md.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: argocd
+resources:
+  - namespace.yaml
+  - https://raw.githubusercontent.com/argoproj/argo-cd/v3.3.6/manifests/install.yaml
+  - root-app.yaml

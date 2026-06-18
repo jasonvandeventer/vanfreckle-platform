@@ -1,0 +1,24 @@
+# Platform namespaces (sync FIRST). Creates longhorn-system with the privileged
+# Pod-Security labels Longhorn needs (Talos enforces PSA; the Longhorn chart does
+# not label its own namespace). cnpg-system is created by the CNPG operator manifest
+# itself, so it is not duplicated here.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: namespaces
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/jasonvandeventer/vanfreckle-platform.git
+    targetRevision: main
+    path: clusters/talos/manifests/namespaces
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: longhorn-system
+  # manual sync — no automated block (see root-app.yaml)
+  syncPolicy:
+    syncOptions:
+      - ApplyOutOfSyncOnly=true

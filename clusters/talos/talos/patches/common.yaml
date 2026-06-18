@@ -1,0 +1,18 @@
+# Phase-4 base patch — common  (ALL nodes; applied at `talosctl gen config` time)
+# ─────────────────────────────────────────────────────────────────────────────
+# NOT one of the five node-targeted patches — this is the shared base every node
+# needs. The install IMAGE is set by gen-configs.sh via --install-image (so it can
+# never drift from cluster.env), so it is intentionally NOT repeated here.
+#
+# 🛑 install.disk is pinned to /dev/vda (the virtio NVMe SYSTEM disk). This matters
+#    on worker1 + cp3, which ALSO have a passed-through SATA SSD (enumerates as
+#    /dev/sda). Without this pin Talos could install the OS onto the SATA data disk.
+#    Confirm at Phase-3 disk checkpoint: `talosctl get disks`.
+machine:
+  install:
+    disk: /dev/vda
+    wipe: false
+  features:
+    hostDNS:
+      enabled: true
+      forwardKubeDNSToHost: true

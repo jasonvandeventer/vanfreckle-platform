@@ -1,0 +1,22 @@
+# Longhorn post-install config — the ssd-pinned default StorageClass. Separate from the
+# chart app so it can sync AFTER Longhorn's CRDs/driver exist (sync-wave 1).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: longhorn-config
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/jasonvandeventer/vanfreckle-platform.git
+    targetRevision: main
+    path: clusters/talos/manifests/longhorn
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: longhorn-system
+  # manual sync — no automated block (see root-app.yaml)
+  syncPolicy:
+    syncOptions:
+      - ApplyOutOfSyncOnly=true

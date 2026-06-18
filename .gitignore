@@ -24,3 +24,21 @@ roadmap.md
 
 # Claude Code local settings
 .claude/
+
+# ─── Talos cluster bootstrap (feature/talos-cluster-bootstrap) ────────────────
+# Rendered Talos machine configs EMBED cluster secrets (etcd/cluster CA, bootstrap
+# token, service-account key). NEVER commit them. The patches + cluster.env +
+# scripts ARE the committed source of truth; the rendered output is reproducible.
+# secrets.yaml is the irreplaceable cluster secrets bundle → Vaultwarden, not git.
+/clusters/talos/talos/rendered/
+**/secrets.yaml
+*.talsecret.yaml
+# Sealed-secrets master key export (reused from the old cluster) — Vaultwarden only.
+sealed-secrets-key-backup.yaml
+# kubeconfig / talosconfig that grant cluster admin — never in git.
+kubeconfig-cartarch-prod
+/clusters/talos/talos/talosconfig
+# The pre-stage bundle zip is a build artifact, not source.
+/talos-prestage.zip
+backups/
+/talos.env

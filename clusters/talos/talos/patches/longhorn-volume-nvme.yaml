@@ -1,0 +1,24 @@
+# Phase-4 Patch A (NVMe variant) — longhorn-volume  (cp2 ONLY)
+# ─────────────────────────────────────────────────────────────────────────────
+# For cp2, whose Longhorn disk is a ~50 GB vdisk carved from the NVMe cache pool
+# (NOT passthrough). Doc 1 is the identical Longhorn ssd disk-tag; doc 2 mounts the
+# vdisk at /var/mnt/longhorn. The selector stays the simple "!system_disk" (review
+# item #4 keeps cp2 as-is): cp2 has exactly one non-system disk (the virtio vdisk),
+# so this is unambiguous. A transport/size match is unnecessary here.
+machine:
+  nodeLabels:
+    node.longhorn.io/create-default-disk: "config"
+  nodeAnnotations:
+    node.longhorn.io/default-disks-config: |
+      [{"path":"/var/mnt/longhorn","allowScheduling":true,"tags":["ssd"]}]
+---
+apiVersion: v1alpha1
+kind: UserVolumeConfig
+name: longhorn
+provisioning:
+  diskSelector:
+    match: "!system_disk"
+  minSize: 10GiB
+  grow: true            # claim the whole NVMe vdisk
+filesystem:
+  type: xfs

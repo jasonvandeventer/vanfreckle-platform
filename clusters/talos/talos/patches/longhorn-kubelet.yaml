@@ -1,0 +1,19 @@
+# Phase-4 Patch B — longhorn-kubelet  (STORAGE nodes ONLY: worker1, cp3, cp2)
+# ─────────────────────────────────────────────────────────────────────────────
+# 🛑 NOT applied to cp1 (storage-free). Pairs with longhorn-volume.yaml.
+# Bind-mounts the user volume into the kubelet mount namespace so Longhorn's
+# instance-manager can see /var/mnt/longhorn, and sets the two sysctls Longhorn
+# requires (map-count for many replicas; file-max headroom).
+machine:
+  kubelet:
+    extraMounts:
+      - destination: /var/mnt/longhorn
+        type: bind
+        source: /var/mnt/longhorn
+        options:
+          - bind
+          - rshared
+          - rw
+  sysctls:
+    vm.max_map_count: "262144"
+    fs.file-max: "524288"

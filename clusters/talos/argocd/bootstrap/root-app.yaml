@@ -1,0 +1,30 @@
+# Root app-of-apps for the NEW Talos cluster.
+# ─────────────────────────────────────────────────────────────────────────────
+# 🛑 DECLARATIVE-ONLY / NO AUTO-APPLY (by request): there is intentionally NO
+#    `syncPolicy.automated` on this root OR on any child Application. Applying this
+#    bundle (kubectl apply -k argocd/bootstrap/) only CREATES the Application
+#    objects; nothing deploys until a human runs the first `argocd app sync`.
+#    Enable `automated: {prune, selfHeal}` per-app AFTER the first manual sync is
+#    verified. Until the new cluster exists, this whole tree is inert.
+#
+# Cluster-aware overlay: this path (clusters/talos/**) is SEPARATE from the old
+# k3s cluster's k8s/** tree, so the two ArgoCD instances never reconcile each
+# other's desired state (build guide Phase 8 + pitfall list).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/jasonvandeventer/vanfreckle-platform.git
+    targetRevision: main        # 🅵 until this branch merges, point at feature/talos-cluster-bootstrap to test
+    path: clusters/talos/argocd/apps
+  destination:
+    server: https://kubernetes.default.svc   # the NEW cluster's own API (does not exist yet)
+    namespace: argocd
+  # No syncPolicy.automated — manual sync only. See header.
+  syncPolicy:
+    syncOptions:
+      - ApplyOutOfSyncOnly=true
