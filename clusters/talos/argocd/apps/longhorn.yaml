@@ -24,24 +24,26 @@ spec:
     helm:
       valuesObject:
         defaultSettings:
-          defaultDataPath: /var/mnt/longhorn        # 🛑 MUST equal the UserVolume mount
+          defaultDataPath: /var/mnt/longhorn # 🛑 MUST equal the UserVolume mount
           defaultReplicaCount: 3
-          createDefaultDiskLabeledNodes: true        # only labeled nodes get a Longhorn disk
+          createDefaultDiskLabeledNodes: true # only labeled nodes get a Longhorn disk
           storageMinimalAvailablePercentage: 15
-          concurrentReplicaRebuildPerNodeLimit: 1    # cheap insurance vs. cp2 NVMe contention
+          concurrentReplicaRebuildPerNodeLimit: 1 # cheap insurance vs. cp2 NVMe contention
           concurrentAutomaticEngineUpgradePerNodeLimit: 1
-          # 🛑🛑 PHASE-7 FILL-IN, NON-OPTIONAL — this is the R2 DR FLOOR beneath replica-3.
-          #      Replica-3 buys uptime through a drive failure; R2 buys recovery from total
-          #      cluster loss. Do NOT let this CHANGE_ME ride past apply — a cluster with no
-          #      backupTarget has NO off-cluster recovery. Set the real R2 bucket@region +
-          #      ensure the longhorn-r2-secret SealedSecret is restored (reused from old cluster).
-          backupTarget: "s3://CHANGE_ME-bucket@auto/"        # 🛑 set R2 bucket@region before apply
-          backupTargetCredentialSecret: longhorn-r2-secret   # reused SealedSecret (k8s/secrets/)
+          backupTarget: "s3://cartarch-backups-talos@auto/"
+          backupTargetCredentialSecret: longhorn-r2-secret # new least-priv cred, sealed in clusters/talos/manifests/longhorn/
         persistence:
-          defaultClass: false        # longhorn-ssd (longhorn-config.yaml) is the default instead
+          defaultClass: false # longhorn-ssd (longhorn-config.yaml) is the default instead
           defaultClassReplicaCount: 3
           defaultFsType: ext4
-        # Longhorn manager/ui run privileged — namespace is labeled privileged (namespaces app).
+          # Longhorn manager/ui run privileged — namespace is labeled privileged (namespaces app).
+
+          defaultDiskSelector:
+            enable: true
+            selector: ssd
+          defaultNodeSelector:
+            enable: false
+            selector: ""
   destination:
     server: https://kubernetes.default.svc
     namespace: longhorn-system
