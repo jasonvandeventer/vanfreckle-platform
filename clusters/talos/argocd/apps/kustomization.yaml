@@ -16,3 +16,4 @@ resources:
   - cnpg-operator.yaml
   - cert-manager-crds.yaml
   - cert-manager.yaml
+  - cnpg-barman-plugin.yaml

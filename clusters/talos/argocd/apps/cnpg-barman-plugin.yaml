@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cnpg-barman-plugin
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"      # after cert-manager (wave 1) — Certs need the cm controller
+spec:
+  project: default                          # confirm vs sibling, same as item 1
+  source:
+    repoURL: https://github.com/jasonvandeventer/vanfreckle-platform.git
+    targetRevision: main
+    path: clusters/talos/manifests/cnpg-barman-plugin
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cnpg-system
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
