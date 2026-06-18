@@ -1,0 +1,20 @@
+# Repo path: clusters/talos/manifests/longhorn/backuptarget.yaml
+#
+# Longhorn default backup target — Cloudflare R2, off-site DR for the Talos cluster.
+# Mirrors blue's k8s/apps/recurring-jobs/base/backup-target.yaml, with green's OWN
+# dedicated bucket + least-priv cred (blue-green isolation — two live Longhorns must
+# not share a bucket; see backup-strategy.md).
+#
+# v1.11.x: the BackupTarget CR is AUTHORITATIVE. The chart's defaultSettings.backupTarget
+# is inert (the backup-target Setting is gone), so URL/cred MUST be declared here, not
+# via Helm values. Endpoint + keys come from credentialSecret (longhorn-r2-secret, sealed
+# in this same dir). URL format: s3://<bucket>@<region>/ (R2 region = "auto").
+apiVersion: longhorn.io/v1beta2
+kind: BackupTarget
+metadata:
+  name: default
+  namespace: longhorn-system
+spec:
+  backupTargetURL: s3://cartarch-backups-talos@auto/
+  credentialSecret: longhorn-r2-secret
+  pollInterval: 5m0s
