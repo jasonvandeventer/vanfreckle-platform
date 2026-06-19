@@ -1,0 +1,15 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: cartarch-prod-daily
+  namespace: cnpg-system
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+spec:
+  schedule: "0 0 3 * * *"
+  backupOwnerReference: self
+  cluster:
+    name: cartarch-prod
+  method: plugin
+  pluginConfiguration:
+    name: barman-cloud.cloudnative-pg.io

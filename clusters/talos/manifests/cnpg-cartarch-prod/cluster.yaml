@@ -1,0 +1,47 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: cartarch-prod
+  namespace: cnpg-system
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+spec:
+  instances: 3
+  imageName: ghcr.io/cloudnative-pg/postgresql:18.3-system-trixie
+  primaryUpdateStrategy: unsupervised
+
+  enableSuperuserAccess: true
+
+  storage:
+    size: 5Gi
+    storageClass: longhorn-ssd
+
+  affinity:
+    enablePodAntiAffinity: true
+    topologyKey: kubernetes.io/hostname
+    podAntiAffinityType: required
+
+  bootstrap:
+    initdb:
+      database: cartarch
+      owner: cartarch
+
+  plugins:
+    - name: barman-cloud.cloudnative-pg.io
+      isWALArchiver: true
+      parameters:
+        barmanObjectName: cnpg-r2-store
+        serverName: cartarch-prod
+
+  resources:
+    requests:
+      memory: 512Mi
+      cpu: 250m
+    limits:
+      memory: 1Gi
+      cpu: "1"
+
+  postgresql:
+    parameters:
+      shared_buffers: 128MB
+      max_connections: "100"

@@ -19,3 +19,5 @@ resources:
   - cnpg-barman-plugin.yaml
   - cnpg-crds.yaml
   - cnpg-backup-config.yaml
+  - cnpg-cartarch-prod.yaml
+
