@@ -42,3 +42,6 @@ kubeconfig-cartarch-prod
 /talos-prestage.zip
 backups/
 /talos.env
+
+# read-only diagnostic report artifacts (timestamped, not source)
+scripts/green-health-reports/
