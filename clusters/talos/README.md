@@ -5,9 +5,17 @@ built blue/green alongside the live k3s stack. Authored against
 `vanfreckle-platform/talos-parallel-cluster-build-guide-2026-06-05.md` (v3.2) **plus**
 its two storage addenda (SATA SSD ADDENDUM 2026-06-13 + UPDATE 2026-06-13b).
 
-> **Status: authored + offline-validated, NOTHING applied.** Branch
-> `feature/talos-cluster-bootstrap`. Review before any apply. `cluster.env` is the
-> single source of truth; everything else is rendered/derived from it.
+> **Status (2026-06-20): built and operational — Phases 3–9 complete.** The cluster is up
+> (3 control-plane + 1 worker); Longhorn, cert-manager, and CNPG (operator 1.29.1, PG18)
+> are reconciled by the ArgoCD overlay, and **CNPG + Barman-Cloud Plugin v0.12.0 backup →
+> Cloudflare R2 → restore is proven end-to-end** (dedicated `cartarch-cnpg-backups`
+> bucket). The Phase-9 prod Cartarch CNPG cluster (`manifests/cnpg-cartarch-prod/`) is
+> authored as the **v4 cutover target**; remaining before v4.0.0 = stand that prod cluster
+> up + prove a restore, a scripted SQLite→PG rehearsal, then a write-freeze cutover window.
+> Host RAM is oversubscribed only while both clusters run (resolves when blue/K3s is
+> decommissioned post-cutover). `cluster.env` remains the single source of truth;
+> everything else is rendered/derived from it. The bring-up/validation notes below are
+> retained as the as-built record.
 
 ## Locked versions (2026-06-13, Option A)
 | Component | Pin | Why |
@@ -56,12 +64,17 @@ vms/
 nobara/throwaway-postgres.sh    ← local PG18 + read-only role for v4 migration dev
 argocd/
   bootstrap/                    ← hand-applied once (argocd v3.3.6 + root app-of-apps)
-  apps/                         ← 5 child Applications (manual-sync, NO auto-apply)
+  apps/                         ← child Applications: namespaces, sealed-secrets, cert-manager
+                                  (+CRDs), Longhorn (+config), CNPG operator/CRDs/Barman-plugin/
+                                  backup-config, and the prod Cartarch cluster
 manifests/
-  namespaces/ longhorn/ cnpg/   ← raw resources the path-based Applications point at
+  namespaces/ longhorn/ cert-manager/                         ← base platform resources
+  cnpg-crds/ cnpg/ cnpg-barman-plugin/ cnpg-backup-config/    ← CNPG: CRDs (SSA), operator,
+                                                                Barman-Cloud plugin, R2 ObjectStore
+  cnpg-cartarch-prod/                                         ← Phase-9 prod Cartarch cluster (v4 target)
 ```
 
-## Offline validation (what was run; NOTHING applied to any cluster)
+## Offline validation (run at authoring time, pre-apply; retained as the as-built record)
 - `talos/gen-configs.sh` → all 4 node configs pass **`talosctl validate --mode metal`**.
 - VM XML → **`xmllint` + `virt-xml-validate`** on all 4 rendered domains.
 - `kustomize build` clean on bootstrap/ apps/ manifests/**; **CNPG render = 10 CRDs + 1
@@ -96,3 +109,7 @@ The new Postgres DSN is net-new content to seal LATER (Phase 9), not now.
 - 🛑 CP system disks `cache='none'` (etcd fsync honesty); watch cp2 etcd fsync (it shares its NVMe with a replica).
 - 🛑 SATA by-id is a real TODO — the USB bridge reports the wrong id; get it from an internal port.
 - 🛑 New ArgoCD on its OWN overlay (clusters/talos/**), never the old k8s/** path.
+- 🛑 CNPG CRDs are their OWN app, synced with **ServerSideApply** — NEVER `Replace=true`
+  (Replace deletes the oversized `clusters`/`poolers` CRDs, CNPG bug #7131).
+- 🛑 The app-of-apps fan-out marks children Synced/Healthy WITHOUT running a sync — force a
+  real sync on each child so CRD/resource ownership actually transfers.

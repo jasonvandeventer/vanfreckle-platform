@@ -7,6 +7,17 @@ This complements `docs/recovery.md`, which covers recovering an *existing* clust
 
 > **Note to the operator (delete on completion):** every `[TODO]` block below is a place where the original procedure needs to be captured. The structure below is the *expected* shape based on the platform inventory in `cluster-layout.md` — adjust freely if your actual bootstrap diverged. Anything you can't remember exactly is worth a one-line "best-guess; verify on next rebuild" note rather than leaving it blank.
 
+## Scope — this is the blue (K3s) bootstrap
+
+This skeleton documents the from-scratch build of the original **K3s cluster ("blue")**,
+still live prod as of 2026-06-20. The new **Talos cluster ("green")** is bootstrapped
+differently and from its own source-of-truth: `clusters/talos/` — `cluster.env` +
+`talos/gen-configs.sh` render the machine configs, the VMs are defined by `vms/`, and a
+separate ArgoCD overlay (`clusters/talos/argocd/`) reconciles workloads (Longhorn,
+cert-manager, CNPG + Barman→R2). See `clusters/talos/README.md` for that procedure; it is
+already built (Phases 3–9). Green is the **v4 cutover target**; once blue is decommissioned
+post-cutover, the green bootstrap supersedes this document.
+
 ## Prerequisites
 
 [TODO: confirm or correct this list — likely missing items the operator added during the original build.]

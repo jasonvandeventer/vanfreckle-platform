@@ -7,6 +7,24 @@
 
 Step-by-step procedure for recovering the platform after an unplanned outage (power loss, host crash, network partition, etc.). The goal: a documented path from "cluster is down" to "verified healthy" that any operator can follow without prior tribal knowledge.
 
+## Clusters — blue (K3s) vs green (Talos)
+
+This playbook was written for the original **K3s cluster ("blue")**, still the live
+production target as of 2026-06-20. A second **Talos + vanilla-Kubernetes cluster
+("green")** has since been built alongside it (`clusters/talos/`) and becomes the recovery
+*and* production target after the **v4 PostgreSQL cutover**. Two things differ for green:
+
+- **Bring-up/rebuild is its own procedure** — `clusters/talos/README.md` (`cluster.env` +
+  `talos/gen-configs.sh` render the machine configs; a separate ArgoCD overlay reconciles
+  workloads). The K3s-specific steps below do not apply to green.
+- **Database recovery is CNPG, not SQLite/Longhorn.** Green's data tier is CNPG
+  (PostgreSQL 18) with **proven** Barman-Cloud → Cloudflare R2 backup/restore
+  (bucket `cartarch-cnpg-backups`). Post-cutover DB recovery follows a CNPG cluster
+  restore, not the volume-level path implied by the SQLite era.
+
+Until the cutover completes, **blue is authoritative** and this document applies as
+written. After blue is decommissioned, green's README + the CNPG restore path supersede it.
+
 ## Status
 
 Stub created during 2026-05-16 post-outage audit. Full playbook to be written in a future session. Lessons learned during the 2026-05-16 outage are captured in `inventory.md` under "Outage Incident Summary"; those should be folded into this document when it is fleshed out.

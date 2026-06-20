@@ -3,6 +3,8 @@
 **Status:** Accepted
 **Date:** 2026-05-29
 
+> **Update 2026-06-20 — see the dated addendum at the end.** The "v4 — soon" decision has held and materially advanced: app-side readiness gates are done and shipped on prod (v3.39.9), and CNPG + Barman-Cloud → Cloudflare R2 backup/restore is now **proven end-to-end and GitOps-codified** on the new green/Talos cluster — which **overturns** the earlier "Barman sidecar wall → consider VolumeSnapshot" caveat.
+
 ## Context
 
 The Cartarch app is at **v3.30.22** and has held a hard **"SQLite-until-v4"** invariant across 65 successive releases — every v3 release is zero-schema, zero-migration. **v4** is the PostgreSQL migration, framed in `cartarch/roadmap.md` not as a scaling chore but as the architectural unblock for the product vision (multi-writer durable state, event-sourced game tracker, multi-tenancy substrate, real concurrency). That same roadmap parks it as *"Likely a multi-month effort … the right thing when timing aligns."*
@@ -58,3 +60,27 @@ Concretely, in order:
 - `cartarch/roadmap.md` → *v4 Platform Migration* (scope of v4)
 - `roadmap.md` → Resilience & Production-Readiness (off-host backups, recovery testing); *Pending Cross-Cutting Sweeps* (the in-cluster rename folded into v4)
 - `docs/restore-runbook.md` — the reactive backstop while on SQLite
+
+## Update — 2026-06-20 (status reconciliation)
+
+Recording where this decision stands today so the ADR isn't read as still-pending. The
+hybrid order above held; the data-protection and platform work landed, and v4 is now in
+its final pre-cutover stretch.
+
+- **App-side v4 readiness gates are done and shipped to prod (v3.39.9):** the Alembic
+  baseline, the FK parent-delete enforcement harness (green on SQLite **and** PostgreSQL 18),
+  and the app-side FK-safety work (pool config, `DATA_DIR` guard, leaf-first
+  `storage_locations` delete). The prod FK-orphan sweep came back clean (0/0, in-pod, 06-19).
+- **Backup/restore is no longer the open risk.** CNPG (operator 1.29.1) + the Barman-Cloud
+  Plugin (v0.12.0) backing up to Cloudflare R2 and **restoring** is proven end-to-end and
+  GitOps-codified on the green/Talos cluster (dedicated `cartarch-cnpg-backups` bucket).
+  This **overturns** the earlier "Barman sidecar wall → consider VolumeSnapshot" caveat —
+  the plugin path works.
+- **Platform target changed:** the cutover lands on the new **Talos + vanilla-Kubernetes
+  cluster** ("green"), not blue/K3s. See `clusters/talos/` and `clusters/talos/README.md`.
+- **Migration tooling:** `pgloader` was retired in favour of a model-based scripted loader
+  (`scripts/migrate_sqlite_to_pg.py` in the cartarch repo).
+- **Remaining before the v4.0.0 cutover** (now a pure backend swap): stand up the *prod*
+  CNPG cluster (`clusters/talos/manifests/cnpg-cartarch-prod/`) + prove a restore → a
+  scripted SQLite→PostgreSQL rehearsal → a write-freeze cutover window (runbook: vault
+  `cartarch/v4-cutover-runbook-2026-06-19.md`).

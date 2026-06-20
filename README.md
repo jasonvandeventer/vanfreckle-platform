@@ -24,7 +24,9 @@ The platform layer of the system, kept separate from application code:
 
 ## Architecture
 
-- **K3s** v1.34.6 — four Rocky Linux 9.7 VMs on a single Unraid host (the named single-host SPOF)
+> **Blue/green transition (as of 2026-06-20):** the live production cluster is the original **K3s** stack ("blue"). A new **Talos + vanilla-Kubernetes** cluster ("green", under `clusters/talos/`) has been built (Phases 3–9) and is the cutover target for the **v4 PostgreSQL migration** — its data tier is CNPG (PostgreSQL 18) with Barman-Cloud → Cloudflare R2 backup/restore proven end-to-end. The bullets below describe the live blue cluster; green's pins, topology, and status are in `clusters/talos/README.md`. Host RAM is oversubscribed only while both clusters run; this resolves when blue is decommissioned post-cutover.
+
+- **K3s** v1.34.6 — four Rocky Linux 9.7 VMs on a single Unraid host (the named single-host SPOF; **blue / current prod**)
 - **Argo CD** — GitOps controller; `selfHeal` + `prune` on every Application
 - **Longhorn** — distributed block storage (default StorageClass) + NFS backup target
 - **kube-prometheus-stack** — Prometheus / Grafana / Alertmanager
@@ -69,8 +71,13 @@ k8s/
 │   └── recurring-jobs/
 ├── observability/                # kube-prometheus-stack values + namespace
 └── platform/                     # cluster-scoped platform resources
+clusters/
+└── talos/                        # green cluster: Talos machine-config + its own ArgoCD
+                                  #   overlay (Longhorn, cert-manager, CNPG + Barman→R2)
 docs/                             # runbooks, ADRs (docs/decisions/), recovery
 ```
+
+> The `k8s/` tree reconciles the live **blue (K3s)** cluster; `clusters/talos/` is the self-contained source for the new **green (Talos)** cluster (its own ArgoCD overlay, never the `k8s/**` path).
 
 ---
 
