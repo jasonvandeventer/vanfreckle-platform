@@ -1,0 +1,20 @@
+# Mirrors blue's Service exactly (k8s/apps/mana-archive/base/service.yaml). The
+# cloudflared tunnel targets this Service by name (green has no ingress controller);
+# the `http` port name + `app: mana-archive` label are also what a future
+# ServiceMonitor selects once observability lands on green.
+apiVersion: v1
+kind: Service
+metadata:
+  name: mana-archive
+  namespace: mana-archive
+  labels:
+    app: mana-archive
+spec:
+  type: ClusterIP
+  selector:
+    app: mana-archive
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8000
+      protocol: TCP

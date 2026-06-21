@@ -1,0 +1,117 @@
+# cartarch (mana-archive) app on GREEN/Talos — v4.0.0 cutover deployment.
+#
+# This is a NEW deployment on a cluster the app has never run on. It is a PURE backend
+# swap vs blue: same app image (v4.0.0), single replica + Recreate (multi-replica /
+# RollingUpdate is v4.0.x per the roadmap), now talking to Postgres instead of SQLite.
+#
+# DELTAS from blue's Deployment (k8s/apps/mana-archive/base/deployment.yaml), all
+# intentional — see clusters/talos/manifests/mana-archive/README.md:
+#   - NO run_migrations initContainer  (SQLite boot-migrations retired at gate #4;
+#     the v4 schema is built by the cutover alembic Job, not on app boot).
+#   - NO Longhorn data PVC  (PG holds durable state; /data is an emptyDir for the
+#     regenerable panels_cache only — green app is stateless).
+#   - + DATABASE_URL  (recomposed postgresql+psycopg:// from the CNPG app secret).
+#   - + resource requests/limits and readiness/liveness probes (blue had neither).
+#
+# 🛑 PREREQUISITES (window/secrets tasks — NOT satisfied by this manifest):
+#   G1  cartarch-prod-app must be MIRRORED into THIS namespace (secretKeyRef is
+#       namespace-local; CNPG generates it in cnpg-system). Use a reflector or a
+#       manual copy. WITHOUT IT the DATABASE_URL env below cannot resolve.
+#   G2  the mana-archive-secrets SealedSecret must be applied into THIS namespace
+#       (provides SESSION_SECRET_KEY + RESEND_API_KEY; app refuses to boot without
+#       RESEND in prod). Relies on the blue->green sealed-secrets key reuse.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mana-archive
+  namespace: mana-archive
+  labels:
+    app: mana-archive
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate # v4.0.0 stays single-replica; multi-replica/RollingUpdate is v4.0.x
+  selector:
+    matchLabels:
+      app: mana-archive
+  template:
+    metadata:
+      labels:
+        app: mana-archive
+    spec:
+      # Clean SIGTERM: the on_shutdown handler stops the writer daemons before exit.
+      # (On PG there is no local SQLite file to checkpoint, but daemon shutdown still
+      # wants the grace period — kept at blue's value.)
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: mana-archive
+          image: ghcr.io/jasonvandeventer/mana-archive:v4.0.0 # the APP image, NOT -migrate
+          imagePullPolicy: IfNotPresent
+          # Recompose a SQLAlchemy psycopg-v3 URL from the CNPG app secret's PARTS
+          # (CNPG's raw `uri` key is plain postgresql:// -> psycopg2, not installed),
+          # password URL-encoded and read from env — identical to the migration Jobs —
+          # then exec the normal uvicorn entrypoint.
+          command: ["/bin/sh", "-ec"]
+          args:
+            - |
+              export DATABASE_URL="$(python -c 'import os,urllib.parse as u; print("postgresql+psycopg://%s:%s@cartarch-prod-rw.cnpg-system.svc.cluster.local:5432/cartarch" % (u.quote(os.environ["PGUSER"],safe=""), u.quote(os.environ["PGPASSWORD"],safe="")))')"
+              echo "cartarch -> cartarch-prod-rw.cnpg-system.svc:5432/cartarch as $PGUSER"
+              exec uvicorn app.main:app --host 0.0.0.0 --port 8000
+          env:
+            # --- DB credentials: from the MIRRORED CNPG app secret (see G1) ---
+            - name: PGUSER
+              valueFrom:
+                secretKeyRef:
+                  name: cartarch-prod-app
+                  key: username
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: cartarch-prod-app
+                  key: password
+            # --- app secrets: from the mana-archive-secrets SealedSecret (see G2) ---
+            - name: SESSION_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: mana-archive-secrets
+                  key: SESSION_SECRET_KEY
+            - name: RESEND_API_KEY # app refuses to boot in prod without this
+              valueFrom:
+                secretKeyRef:
+                  name: mana-archive-secrets
+                  key: RESEND_API_KEY
+            # DATA_DIR is the writable scratch dir for the regenerable panels_cache
+            # (emptyDir below). No SQLite lives here on PG.
+            - name: DATA_DIR
+              value: /data
+          ports:
+            - containerPort: 8000
+          readinessProbe: # gates tunnel traffic until the app is actually serving
+            httpGet:
+              path: /
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8000
+            initialDelaySeconds: 20
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources: # blue set none; modest values — headroom for the bulk-data ijson loop
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 768Mi
+          volumeMounts:
+            - name: scratch
+              mountPath: /data
+      volumes:
+        - name: scratch
+          emptyDir: {} # ephemeral; panels_cache only, regenerated on demand

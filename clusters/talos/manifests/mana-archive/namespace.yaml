@@ -1,0 +1,7 @@
+# The cartarch app's own namespace on green — parity with blue (k3s), kept SEPARATE
+# from cnpg-system (only the CNPG Cluster is bound there by the Barman same-ns
+# constraint; the app reaches Postgres cross-namespace via service DNS).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: mana-archive

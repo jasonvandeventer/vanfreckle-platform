@@ -1,0 +1,23 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Green/Talos cartarch app — v4.0.0 cutover deployment. STAGED: this directory is
+# NOT yet referenced by clusters/talos/argocd/apps/kustomization.yaml, so green's
+# ArgoCD does not sync it. Adding that Application CR is the deploy trigger — a
+# deliberate window task, intentionally left out here.
+#
+# NOT included (see README + the parity gaps):
+#   - Ingress       — green has no ingress controller; traffic comes via cloudflared.
+#   - ServiceMonitor — green observability is deferred; re-add when kube-prometheus-stack lands.
+#   - the secrets    — cartarch-prod-app (mirrored) + mana-archive-secrets (SealedSecret)
+#                      are applied out-of-band, not by this kustomization.
+resources:
+  - namespace.yaml
+  - deployment.yaml
+  - service.yaml
+
+# Pin v4.0.0 explicitly. Green is deliberately NOT under an image-updater yet — v4.0.0
+# must not auto-bump before the Phase C dry-run proves the migration (G4).
+images:
+  - name: ghcr.io/jasonvandeventer/mana-archive
+    newTag: v4.0.0
