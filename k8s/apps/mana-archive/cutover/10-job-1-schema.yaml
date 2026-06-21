@@ -1,0 +1,58 @@
+# STAGE 1 — SCHEMA. Build the v4 baseline schema on green's Postgres via Alembic
+# (the gate-#4 schema owner): 28 ORM tables + 7 raw tables, native boolean/timestamp,
+# stamps alembic_version. Idempotent-ish: run ONCE into the freshly-bootstrapped,
+# empty `cartarch` database. No snapshot needed (this stage only touches PG).
+#
+# Connects as the app/owner role (cartarch-prod-app) — the database owner can DDL.
+# Image is the :v4.0.0-migrate tooling overlay (the app image lacks alembic + config).
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: cartarch-cutover-1-schema
+  namespace: cnpg-system
+  labels:
+    app.kubernetes.io/part-of: cartarch-v4-cutover
+    cartarch.cutover/stage: "1-schema"
+spec:
+  backoffLimit: 0 # one-time cutover step — never silently retry; a failure must be read
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/part-of: cartarch-v4-cutover
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: schema
+          image: ghcr.io/jasonvandeventer/mana-archive:v4.0.0-migrate
+          workingDir: /app
+          env:
+            - name: PYTHONPATH
+              value: /app
+            - name: DATA_DIR
+              value: /tmp # belt-and-suspenders; the PG DATABASE_URL skips the sqlite mkdir anyway
+            - name: PGUSER
+              valueFrom:
+                secretKeyRef:
+                  name: cartarch-prod-app
+                  key: username
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: cartarch-prod-app
+                  key: password
+          command: ["/bin/sh", "-ec"]
+          args:
+            # Recompose a SQLAlchemy psycopg-v3 URL from the secret's PARTS (CNPG's `uri`
+            # key is a plain postgresql:// — psycopg2 driver, not installed). Password is
+            # URL-encoded; read from env, never placed on the command line.
+            - |
+              export DATABASE_URL="$(python -c 'import os,urllib.parse as u; print("postgresql+psycopg://%s:%s@cartarch-prod-rw.cnpg-system:5432/cartarch" % (u.quote(os.environ["PGUSER"],safe=""), u.quote(os.environ["PGPASSWORD"],safe="")))')"
+              echo "STAGE 1 schema -> cartarch-prod-rw.cnpg-system:5432/cartarch as $PGUSER"
+              exec alembic upgrade head
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi

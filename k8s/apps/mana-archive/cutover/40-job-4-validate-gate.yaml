@@ -1,0 +1,69 @@
+# STAGE 4 — THE GATE (runbook step 11). Read-only validation against loaded green PG
+# with the source snapshot mounted read-only: scripts/validate_cutover.py runs the five
+# checks (zero orphans, row-count parity, boolean landmine via the real _gather_deck_signals
+# path, sequence sanity, byte-identical scryfall_cards cache round-trip) and exits 0
+# (hard checks PASS) or 1 (a hard check FAILED -> ABORT, Phase R). Writes nothing.
+#
+# *** THIS IS THE GO/NO-GO HALT ***  The cutover is structured as four SEPARATE Jobs you
+# apply by hand, so nothing auto-continues. After this Job completes, READ ITS LOGS, then
+# reconcile the printed row-parity deficit against Stage 3's deleted count, and make the
+# GO/NO-GO decision. Job Succeeded == automated checks green; Job Failed == ABORT.
+# Nothing downstream (the app cutover: deploy v4.0.0 on green + re-route the tunnel) runs
+# until you decide GO. Runs as the app/owner role; no superuser.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: cartarch-cutover-4-validate-gate
+  namespace: cnpg-system
+  labels:
+    app.kubernetes.io/part-of: cartarch-v4-cutover
+    cartarch.cutover/stage: "4-validate-gate"
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/part-of: cartarch-v4-cutover
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: validate-gate
+          image: ghcr.io/jasonvandeventer/mana-archive:v4.0.0-migrate
+          workingDir: /app
+          env:
+            - name: PYTHONPATH
+              value: /app
+            - name: DATA_DIR
+              value: /tmp
+            - name: PGUSER
+              valueFrom:
+                secretKeyRef:
+                  name: cartarch-prod-app
+                  key: username
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: cartarch-prod-app
+                  key: password
+          command: ["/bin/sh", "-ec"]
+          args:
+            - |
+              export DATABASE_URL="$(python -c 'import os,urllib.parse as u; print("postgresql+psycopg://%s:%s@cartarch-prod-rw.cnpg-system:5432/cartarch" % (u.quote(os.environ["PGUSER"],safe=""), u.quote(os.environ["PGPASSWORD"],safe="")))')"
+              echo "STAGE 4 GATE -> cartarch-prod-rw.cnpg-system:5432/cartarch as $PGUSER"
+              exec python -m scripts.validate_cutover --source /snapshot/mana_archive.db
+          volumeMounts:
+            - name: snapshot
+              mountPath: /snapshot
+              readOnly: true
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+      volumes:
+        - name: snapshot
+          persistentVolumeClaim:
+            claimName: cartarch-cutover-snapshot
+            readOnly: true

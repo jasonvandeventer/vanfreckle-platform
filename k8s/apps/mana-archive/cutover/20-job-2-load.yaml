@@ -1,0 +1,71 @@
+# STAGE 2 — LOAD. Stream the checkpointed SQLite snapshot into the Alembic-built
+# schema via scripts/migrate_sqlite_to_pg.py: loads through the app's Core Tables
+# (type coercion by construction), FK-ordered, under session_replication_role=replica.
+# The script's built-in validate() runs at the end (pre-sweep row parity + boolean +
+# sequence + datetime + an orphan REPORT) and sets the Job's exit code.
+#
+# *** SUPERUSER REQUIRED ***  session_replication_role=replica needs a superuser role,
+# so this stage — and ONLY this stage — uses the cartarch-prod-superuser secret, NOT
+# the app secret. The snapshot carries known/handled FK orphans that fail insert under
+# enforcement, which is exactly why replica mode (FK-off) is mandatory; the script
+# ABORTS with a clear message if it can't enter replica mode. (Available because the
+# cluster sets enableSuperuserAccess: true.) No --truncate-first: schema is empty.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: cartarch-cutover-2-load
+  namespace: cnpg-system
+  labels:
+    app.kubernetes.io/part-of: cartarch-v4-cutover
+    cartarch.cutover/stage: "2-load"
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/part-of: cartarch-v4-cutover
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: load
+          image: ghcr.io/jasonvandeventer/mana-archive:v4.0.0-migrate
+          workingDir: /app
+          env:
+            - name: PYTHONPATH
+              value: /app
+            - name: DATA_DIR
+              value: /tmp
+            - name: PGUSER
+              valueFrom:
+                secretKeyRef:
+                  name: cartarch-prod-superuser # <-- superuser, for replica mode
+                  key: username
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: cartarch-prod-superuser
+                  key: password
+          command: ["/bin/sh", "-ec"]
+          args:
+            - |
+              export DATABASE_URL="$(python -c 'import os,urllib.parse as u; print("postgresql+psycopg://%s:%s@cartarch-prod-rw.cnpg-system:5432/cartarch" % (u.quote(os.environ["PGUSER"],safe=""), u.quote(os.environ["PGPASSWORD"],safe="")))')"
+              echo "STAGE 2 load -> cartarch-prod-rw.cnpg-system:5432/cartarch as $PGUSER (superuser, replica mode)"
+              exec python scripts/migrate_sqlite_to_pg.py \
+                --source /snapshot/mana_archive.db \
+                --target "$DATABASE_URL"
+          volumeMounts:
+            - name: snapshot
+              mountPath: /snapshot
+              readOnly: true
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+      volumes:
+        - name: snapshot
+          persistentVolumeClaim:
+            claimName: cartarch-cutover-snapshot
+            readOnly: true

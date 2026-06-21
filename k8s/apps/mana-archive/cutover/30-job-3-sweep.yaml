@@ -1,0 +1,64 @@
+# STAGE 3 — SWEEP. Remediate the loaded FK orphans per the baseline ondelete intent
+# (scripts/sweep_fk_orphans.py: CASCADE->delete, SET NULL->null, NO ACTION->report),
+# then RE-SCAN and HARD-FAIL if any orphan remains. Standalone sweep_fk_orphans only
+# reports; this Job appends the zero-orphan re-scan so the stage's exit code gates on
+# "FK-clean". Runs as the app/owner role (DML on its own tables) — no superuser, no
+# snapshot (PG-only).
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: cartarch-cutover-3-sweep
+  namespace: cnpg-system
+  labels:
+    app.kubernetes.io/part-of: cartarch-v4-cutover
+    cartarch.cutover/stage: "3-sweep"
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/part-of: cartarch-v4-cutover
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: sweep
+          image: ghcr.io/jasonvandeventer/mana-archive:v4.0.0-migrate
+          workingDir: /app
+          env:
+            - name: PYTHONPATH
+              value: /app
+            - name: DATA_DIR
+              value: /tmp
+            - name: PGUSER
+              valueFrom:
+                secretKeyRef:
+                  name: cartarch-prod-app
+                  key: username
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: cartarch-prod-app
+                  key: password
+          command: ["/bin/sh", "-ec"]
+          args:
+            - |
+              export DATABASE_URL="$(python -c 'import os,urllib.parse as u; print("postgresql+psycopg://%s:%s@cartarch-prod-rw.cnpg-system:5432/cartarch" % (u.quote(os.environ["PGUSER"],safe=""), u.quote(os.environ["PGPASSWORD"],safe="")))')"
+              echo "STAGE 3 sweep -> cartarch-prod-rw.cnpg-system:5432/cartarch as $PGUSER"
+              python -m scripts.sweep_fk_orphans
+              echo "--- post-sweep zero-orphan re-scan ---"
+              python - <<'PY'
+              import sys
+              from app.db import SessionLocal
+              from scripts.sweep_fk_orphans import find_orphans
+              with SessionLocal() as s:
+                  o = find_orphans(s)
+              print("post-sweep orphans:", {k: len(v) for k, v in o.items()} or "ZERO")
+              sys.exit(1 if o else 0)
+              PY
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi

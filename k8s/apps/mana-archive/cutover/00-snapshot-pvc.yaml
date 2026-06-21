@@ -1,0 +1,19 @@
+# Holds the checkpointed prod SQLite snapshot for the cutover load + gate.
+# Delivery is MANUAL (B2.1): the operator `kubectl cp`s the verified snapshot into
+# this PVC via the helper pod (05-snapshot-helper-pod.yaml), then the Load (Stage 2)
+# and Gate (Stage 4) Jobs mount it READ-ONLY. RWO is fine — helper + the four Jobs
+# run strictly sequentially, never concurrently.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: cartarch-cutover-snapshot
+  namespace: cnpg-system
+  labels:
+    app.kubernetes.io/part-of: cartarch-v4-cutover
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn-ssd
+  resources:
+    requests:
+      storage: 1Gi # snapshot is ~170MB; 1Gi is ample

@@ -1,0 +1,34 @@
+# Disposable mount point so the operator can `kubectl cp` the snapshot INTO the PVC.
+# A PVC can only be written through a running pod; this is that pod. It does nothing
+# but sleep. Apply it, cp the snapshot in, verify integrity, then DELETE it before
+# running the Load Job (RWO — the Job can't mount while this holds the volume).
+#
+#   kubectl -n cnpg-system apply -f 05-snapshot-helper-pod.yaml
+#   kubectl -n cnpg-system wait --for=condition=Ready pod/cartarch-snapshot-helper
+#   kubectl -n cnpg-system cp ./mana_archive.db cartarch-snapshot-helper:/snapshot/mana_archive.db
+#   kubectl -n cnpg-system exec cartarch-snapshot-helper -- \
+#       sh -c 'sha256sum /snapshot/mana_archive.db; \
+#              python -c "import sqlite3;print(sqlite3.connect(\"/snapshot/mana_archive.db\").execute(\"PRAGMA integrity_check\").fetchone())"'
+#   # confirm sha256 matches the out-of-pod hash AND integrity_check == ok, THEN:
+#   kubectl -n cnpg-system delete pod cartarch-snapshot-helper
+apiVersion: v1
+kind: Pod
+metadata:
+  name: cartarch-snapshot-helper
+  namespace: cnpg-system
+  labels:
+    app.kubernetes.io/part-of: cartarch-v4-cutover
+spec:
+  restartPolicy: Never
+  containers:
+    - name: helper
+      # Same image as the Jobs — has python+sqlite3 for the integrity check, nothing extra to pull.
+      image: ghcr.io/jasonvandeventer/mana-archive:v4.0.0-migrate
+      command: ["sleep", "3600"]
+      volumeMounts:
+        - name: snapshot
+          mountPath: /snapshot
+  volumes:
+    - name: snapshot
+      persistentVolumeClaim:
+        claimName: cartarch-cutover-snapshot
