@@ -6,13 +6,16 @@ kind: Kustomization
 # ArgoCD does not sync it. Adding that Application CR is the deploy trigger — a
 # deliberate window task, intentionally left out here.
 #
+# The app runs IN cnpg-system (co-located with the cartarch-prod CNPG cluster), so the
+# CNPG app secret + the cartarch-prod-rw service resolve same-namespace. cnpg-system
+# already exists on the cluster, so there is no namespace.yaml here.
+#
 # NOT included (see README + the parity gaps):
 #   - Ingress       — green has no ingress controller; traffic comes via cloudflared.
 #   - ServiceMonitor — green observability is deferred; re-add when kube-prometheus-stack lands.
-#   - the secrets    — cartarch-prod-app (mirrored) + mana-archive-secrets (SealedSecret)
-#                      are applied out-of-band, not by this kustomization.
+#   - the secrets    — cartarch-prod-app (CNPG-generated, same ns) + mana-archive-secrets
+#                      (SealedSecret applied into cnpg-system) are applied out-of-band.
 resources:
-  - namespace.yaml
   - deployment.yaml
   - service.yaml
 

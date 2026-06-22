@@ -4,6 +4,10 @@
 # swap vs blue: same app image (v4.0.0), single replica + Recreate (multi-replica /
 # RollingUpdate is v4.0.x per the roadmap), now talking to Postgres instead of SQLite.
 #
+# Runs IN the cnpg-system namespace, co-located with the cartarch-prod CNPG cluster, so
+# the CNPG-generated cartarch-prod-app secret + the cartarch-prod-rw service both resolve
+# same-namespace (no cross-namespace secret mirror needed — the earlier G1 gap is gone).
+#
 # DELTAS from blue's Deployment (k8s/apps/mana-archive/base/deployment.yaml), all
 # intentional — see clusters/talos/manifests/mana-archive/README.md:
 #   - NO run_migrations initContainer  (SQLite boot-migrations retired at gate #4;
@@ -13,18 +17,15 @@
 #   - + DATABASE_URL  (recomposed postgresql+psycopg:// from the CNPG app secret).
 #   - + resource requests/limits and readiness/liveness probes (blue had neither).
 #
-# 🛑 PREREQUISITES (window/secrets tasks — NOT satisfied by this manifest):
-#   G1  cartarch-prod-app must be MIRRORED into THIS namespace (secretKeyRef is
-#       namespace-local; CNPG generates it in cnpg-system). Use a reflector or a
-#       manual copy. WITHOUT IT the DATABASE_URL env below cannot resolve.
-#   G2  the mana-archive-secrets SealedSecret must be applied into THIS namespace
+# 🛑 PREREQUISITE (window/secrets task — NOT satisfied by this manifest):
+#   G2  the mana-archive-secrets SealedSecret must be applied into cnpg-system
 #       (provides SESSION_SECRET_KEY + RESEND_API_KEY; app refuses to boot without
 #       RESEND in prod). Relies on the blue->green sealed-secrets key reuse.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: mana-archive
-  namespace: mana-archive
+  namespace: cnpg-system
   labels:
     app: mana-archive
 spec:
@@ -58,7 +59,7 @@ spec:
               echo "cartarch -> cartarch-prod-rw.cnpg-system.svc:5432/cartarch as $PGUSER"
               exec uvicorn app.main:app --host 0.0.0.0 --port 8000
           env:
-            # --- DB credentials: from the MIRRORED CNPG app secret (see G1) ---
+            # --- DB credentials: from the same-namespace CNPG app secret ---
             - name: PGUSER
               valueFrom:
                 secretKeyRef:
@@ -69,7 +70,7 @@ spec:
                 secretKeyRef:
                   name: cartarch-prod-app
                   key: password
-            # --- app secrets: from the mana-archive-secrets SealedSecret (see G2) ---
+            # --- app secrets: from the mana-archive-secrets SealedSecret in cnpg-system (G2) ---
             - name: SESSION_SECRET_KEY
               valueFrom:
                 secretKeyRef:
