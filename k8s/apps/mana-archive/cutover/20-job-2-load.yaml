@@ -50,8 +50,19 @@ spec:
             - |
               export DATABASE_URL="$(python -c 'import os,urllib.parse as u; print("postgresql+psycopg://%s:%s@cartarch-prod-rw.cnpg-system:5432/cartarch" % (u.quote(os.environ["PGUSER"],safe=""), u.quote(os.environ["PGPASSWORD"],safe="")))')"
               echo "STAGE 2 load -> cartarch-prod-rw.cnpg-system:5432/cartarch as $PGUSER (superuser, replica mode)"
+              # SQLite can't open a DB on a read-only mount (needs journal/lock files even
+              # to read) -> copy the snapshot to a writable scratch path first.
+              cp /snapshot/mana_archive.db /tmp/mana_archive.db
+              # Pre-load schema fix: prod is v3.39.9, where the games.user_name_at_game
+              # column was reverted, but the v4 app models (which the model-based load reads
+              # via select(games)) include it. Add it to the working copy so every column
+              # maps. Uses the stdlib sqlite3 module (already in the image; migrate_sqlite_to_pg
+              # imports it too) — no sqlite3 CLI needed. The /tmp copy is fresh from the
+              # snapshot each run, so the column is always absent here -> no duplicate-column.
+              python -c "import sqlite3; c=sqlite3.connect('/tmp/mana_archive.db'); c.execute('ALTER TABLE games ADD COLUMN user_name_at_game TEXT'); c.commit(); c.close()"
+              echo "pre-load: added games.user_name_at_game to the working copy"
               exec python scripts/migrate_sqlite_to_pg.py \
-                --source /snapshot/mana_archive.db \
+                --source /tmp/mana_archive.db \
                 --target "$DATABASE_URL"
           volumeMounts:
             - name: snapshot

@@ -50,7 +50,8 @@ spec:
             - |
               export DATABASE_URL="$(python -c 'import os,urllib.parse as u; print("postgresql+psycopg://%s:%s@cartarch-prod-rw.cnpg-system:5432/cartarch" % (u.quote(os.environ["PGUSER"],safe=""), u.quote(os.environ["PGPASSWORD"],safe="")))')"
               echo "STAGE 4 GATE -> cartarch-prod-rw.cnpg-system:5432/cartarch as $PGUSER"
-              exec python -m scripts.validate_cutover --source /snapshot/mana_archive.db
+              cp /snapshot/mana_archive.db /tmp/mana_archive.db
+              exec python -m scripts.validate_cutover --source /tmp/mana_archive.db
           volumeMounts:
             - name: snapshot
               mountPath: /snapshot
