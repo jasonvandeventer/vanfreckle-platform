@@ -1,0 +1,28 @@
+# Green/Talos — syncs the ImageUpdater CR(s) in clusters/talos/argocd/image-updaters/
+# into the argocd ns. This is the GitOps delivery for the CR that blue lacks (blue's CR
+# is hand-applied, in no sync path). sync-wave 7: AFTER image-updater (5) installs the
+# ImageUpdater CRD, else the CR fails to apply ("no matches for kind ImageUpdater").
+#
+# ⚠ automated sync diverges from green's manual-first convention (see mana-archive.yaml).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: image-updater-crs
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "7"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/jasonvandeventer/vanfreckle-platform.git
+    targetRevision: main
+    path: clusters/talos/argocd/image-updaters
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true

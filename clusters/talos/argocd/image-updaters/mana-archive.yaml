@@ -1,0 +1,38 @@
+# Green/Talos ImageUpdater CR — tells argocd-image-updater to watch the GREEN
+# `mana-archive` ArgoCD Application (clusters/talos/argocd/apps/mana-archive.yaml) for new
+# semver tags of ghcr.io/jasonvandeventer/mana-archive and write the bump back to git
+# (the kustomize image pin in clusters/talos/manifests/mana-archive/kustomization.yaml).
+#
+# Mirrors blue's k8s/argocd/image-updaters/mana-archive.yaml. Synced onto green by a
+# dedicated Application (clusters/talos/argocd/apps/image-updater-crs.yaml) — blue's
+# equivalent CR sits in NO sync path (hand-applied, recon finding C1); green does it via
+# GitOps instead, so no manual kubectl is needed.
+#
+# 🛑 BLOCKER: writeBackConfig needs the `image-updater-git-creds` Secret in green's
+#   argocd ns — VERIFIED ABSENT (kubectl get → NotFound). Until it exists, watch+detect
+#   works but the git write-back FAILS, so auto-bumps won't land. Re-seal blue's
+#   k8s/secrets/image-updater-git-creds.sealedsecret.yaml for green (sealed-secrets
+#   controller IS present on green) — same strict-scope re-seal as mana-archive-secrets.
+apiVersion: argocd-image-updater.argoproj.io/v1alpha1
+kind: ImageUpdater
+metadata:
+  name: mana-archive-updater
+  namespace: argocd
+spec:
+  namespace: argocd
+
+  writeBackConfig:
+    method: "git:secret:argocd/image-updater-git-creds"
+    gitConfig:
+      branch: "main"
+
+  applicationRefs:
+    - namePattern: "mana-archive" # the green Application (Part 1), in this same argocd ns
+      images:
+        - alias: "manaarchive"
+          imageName: "ghcr.io/jasonvandeventer/mana-archive"
+          commonUpdateSettings:
+            updateStrategy: "semver"
+          manifestTargets:
+            kustomize:
+              name: "ghcr.io/jasonvandeventer/mana-archive"
