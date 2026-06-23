@@ -9,7 +9,8 @@ metadata:
   namespace: intake
 data:
   GUILD_ID: "1515147922918998086" # <-- FILL: the Discord server id (also the @everyone / reporter role id)
-  CHANNEL_ID: "1518823591972438148" # <-- FILL: the intake channel id (the reporter gate)
+  CHANNEL_ID: "1518823591972438148" # bug-reports channel -> bug template
+  FEATURE_CHANNEL_ID: "1518824860296675490" # <-- FILL: feature-requests channel -> feature template
   APPROVER_ROLE_ID: "1519044634657947858" # <-- FILL: the approver role id
   GITHUB_OWNER: "jasonvandeventer"
   GITHUB_REPO: "cartarch"
