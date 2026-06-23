@@ -19,7 +19,6 @@ metadata:
   name: mana-archive-updater
   namespace: argocd
 spec:
-  namespace: argocd
 
   writeBackConfig:
     method: "git:secret:argocd/image-updater-git-creds"
