@@ -27,7 +27,6 @@ spec:
       containers:
         - name: github-mcp
           image: ghcr.io/github/github-mcp-server:v1.2.0
-          command: ["github-mcp-server"]
           args: ["http", "--port", "8080"]
           ports:
             - containerPort: 8080
