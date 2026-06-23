@@ -23,7 +23,6 @@ resources:
   # cartarch app auto-deploy wiring (sync-waves 5→6→7):
   - image-updater.yaml # the controller + ImageUpdater CRD
   - mana-archive.yaml # the app Deployment + Service (cnpg-system)
-  - image-updater-crs.yaml # the ImageUpdater CR watching the app
   # MCP servers (moved from blue), wave 6:
   - mcp.yaml
 
