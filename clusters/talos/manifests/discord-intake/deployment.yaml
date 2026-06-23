@@ -39,7 +39,7 @@ spec:
         fsGroup: 10001 # group-own the PVC so uid 10001 can create the SQLite DB
       containers:
         - name: discord-intake
-          image: ghcr.io/jasonvandeventer/discord-intake-bot:v0.1.1
+          image: ghcr.io/jasonvandeventer/discord-intake-bot:v0.1.2
           envFrom:
             - configMapRef:
                 name: discord-intake-config
