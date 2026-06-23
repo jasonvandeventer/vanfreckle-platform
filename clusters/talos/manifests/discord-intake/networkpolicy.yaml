@@ -1,0 +1,68 @@
+# =============================================================================
+# STAGED — INTENTIONALLY NOT IN kustomization.yaml. DO NOT add it to `resources:`
+# until green's CNI enforces NetworkPolicy.
+#
+# Green runs **kube-flannel**, which has NO NetworkPolicy controller — Kubernetes
+# NetworkPolicy objects are accepted by the API but NEVER enforced. Applying this
+# would create false assurance (a "boundary" that isn't one). It is captured here,
+# unsynced, so the intended egress allowlist is reviewed and ready: activate it
+# (add to kustomization resources) only after green adopts a policy-enforcing CNI
+# (e.g. Cilium). Until then, the `intake` namespace is a blast-radius boundary in
+# INTENT only — see the deploy report.
+#
+# Intended posture for the untrusted-input bot: deny all ingress; egress limited
+# to exactly its three dependencies + DNS, so it cannot reach the harness, the
+# other MCP servers, Postgres, or ArgoCD.
+# =============================================================================
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: discord-intake-egress
+  namespace: intake
+spec:
+  podSelector:
+    matchLabels:
+      app: discord-intake
+  policyTypes:
+    - Ingress
+    - Egress
+  # Ingress: deny-all (nothing needs to reach the bot — it's an outbound client).
+  ingress: []
+  egress:
+    # (d) DNS resolution.
+    - to: []
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # (b) in-cluster github-mcp Service (namespace mcp, app github-mcp), port 80.
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: mcp
+          podSelector:
+            matchLabels:
+              app: github-mcp
+      ports:
+        - protocol: TCP
+          port: 80
+    # (c) Ollama on the Nobara workstation, port 11434.
+    - to:
+        - ipBlock:
+            cidr: 10.42.1.20/32
+      ports:
+        - protocol: TCP
+          port: 11434
+    # (a) Discord API/gateway — outbound HTTPS to the PUBLIC internet only. Private
+    # ranges are excluded so 443 cannot be used to reach the cluster or the LAN.
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+      ports:
+        - protocol: TCP
+          port: 443

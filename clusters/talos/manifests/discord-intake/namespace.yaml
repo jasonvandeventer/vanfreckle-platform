@@ -1,0 +1,8 @@
+# Dedicated namespace for the Discord intake bot — isolated from the `mcp`
+# namespace (the MCP servers) on purpose: this service ingests UNTRUSTED Discord
+# input, so it gets its own blast-radius / NetworkPolicy boundary. It is a CLIENT
+# of github-mcp, not a server.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: intake

@@ -25,4 +25,6 @@ resources:
   - mana-archive.yaml # the app Deployment + Service (cnpg-system)
   # MCP servers (moved from blue), wave 6:
   - mcp.yaml
+  # Discord -> GitHub Issues intake bot (own `intake` ns), wave 7:
+  - discord-intake.yaml
 

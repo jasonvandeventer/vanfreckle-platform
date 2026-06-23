@@ -1,0 +1,21 @@
+# Non-secret config for the intake bot. The Discord IDs are not secrets — they're
+# just identifiers — so they live here in git. Fill the three empty values with the
+# real IDs before the first sync. Secrets (bot token, CF service token) are in the
+# discord-intake-secrets SealedSecret, not here.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: discord-intake-config
+  namespace: intake
+data:
+  GUILD_ID: "1515147922918998086" # <-- FILL: the Discord server id (also the @everyone / reporter role id)
+  CHANNEL_ID: "1518823591972438148" # <-- FILL: the intake channel id (the reporter gate)
+  APPROVER_ROLE_ID: "1519044634657947858" # <-- FILL: the approver role id
+  GITHUB_OWNER: "jasonvandeventer"
+  GITHUB_REPO: "cartarch"
+  # In-cluster github-mcp Service — both run on green, so the call stays in-cluster
+  # (no Cloudflare Access, no service token). Service "github-mcp" in ns "mcp".
+  GITHUB_MCP_URL: "http://github-mcp.mcp.svc.cluster.local:80/mcp"
+  OLLAMA_BASE_URL: "http://10.42.1.20:11434"
+  TRIAGE_MODEL: "qwen3:8b"
+  DATABASE_URL: "sqlite:///data/intake.db"

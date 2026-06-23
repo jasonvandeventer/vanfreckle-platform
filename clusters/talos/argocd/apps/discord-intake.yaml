@@ -1,0 +1,31 @@
+# Discord intake bot — syncs clusters/talos/manifests/discord-intake/ into the
+# dedicated `intake` namespace. NEW Application: adding it to apps/kustomization.yaml
+# is an Application-definition change, so the manual-sync `root` app-of-apps must be
+# synced once (`argocd app sync root`) to register it, then `argocd app sync
+# discord-intake` for the first deploy; automated sync takes over after.
+# sync-wave 7: after the mcp servers (6) so github-mcp exists when the bot starts.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: discord-intake
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "7"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/jasonvandeventer/vanfreckle-platform.git
+    targetRevision: main
+    path: clusters/talos/manifests/discord-intake
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: intake
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

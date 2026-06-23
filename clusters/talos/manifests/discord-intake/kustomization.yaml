@@ -1,0 +1,12 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# All resources live in the `intake` namespace (each sets its own). The
+# SealedSecret discord-intake-secrets is produced out-of-band with kubeseal (see
+# the bot README / the deploy runbook) and MUST exist before the first sync, or
+# the build fails on the missing resource.
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - discord-intake-sealedsecret.yaml
+  - deployment.yaml
