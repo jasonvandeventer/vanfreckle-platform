@@ -49,3 +49,7 @@ mana_archive_snapshot.db
 cutover-*.log
 mana_archive_cutover_*.db
 cutover.sh
+
+# Raw github-mcp PAT drop file — feeds kubeseal, NEVER committed (only the
+# SealedSecret github-mcp-sealedsecret.yaml is). Delete after sealing.
+.github-pat
