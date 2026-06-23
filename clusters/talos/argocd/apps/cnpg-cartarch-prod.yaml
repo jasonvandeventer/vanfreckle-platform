@@ -17,3 +17,18 @@ spec:
   syncPolicy:
     syncOptions:
       - ServerSideApply=true
+  ignoreDifferences:
+    - group: postgresql.cnpg.io
+      kind: Cluster
+      name: cartarch-prod
+      jqPathExpressions:
+        - '.spec.postgresql.parameters'
+      jsonPointers:
+        - /spec/postgresGID
+        - /spec/postgresUID
+        - /spec/logLevel
+        - /spec/failoverDelay
+        - /spec/maxSyncReplicas
+        - /spec/minSyncReplicas
+        - /spec/enablePDB
+        - /spec/monitoring
