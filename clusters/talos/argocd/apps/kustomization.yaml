@@ -24,4 +24,6 @@ resources:
   - image-updater.yaml # the controller + ImageUpdater CRD
   - mana-archive.yaml # the app Deployment + Service (cnpg-system)
   - image-updater-crs.yaml # the ImageUpdater CR watching the app
+  # MCP servers (moved from blue), wave 6:
+  - mcp.yaml
 

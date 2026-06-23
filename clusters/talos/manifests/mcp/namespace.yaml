@@ -1,0 +1,7 @@
+# MCP servers' namespace on green — kept SEPARATE from cnpg-system (that's the DB).
+# cartarch-mcp reaches the app via the cnpg-system service DNS and reads the app pod's
+# logs via a Role in cnpg-system (see cartarch-mcp-rbac.yaml).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: mcp

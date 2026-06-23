@@ -1,0 +1,101 @@
+# obsidian-mcp on green/Talos — moved from blue/k3s. Same NFS vault share; exposed via
+# NodePort (green has no ingress controller) instead of blue's Traefik Ingress.
+---
+# Static NFS PersistentVolume — the ai-context vault on Unraid (same server + export as
+# blue used). PVs are cluster-scoped, so this is green's own object. NFS accessModes are
+# advisory (the server enforces, not k8s).
+#
+# NOTE (deviation from blue): blue declared accessMode ReadOnlyMany but mounted the volume
+# writable (readOnly: false). obsidian-mcp has write tools (write/edit/append/delete note),
+# so the mount must be writable — green uses ReadWriteMany to match the actual usage rather
+# than replicate blue's ROX-but-writable inconsistency. Flag if you want exact blue parity.
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: obsidian-vault-nfs
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: manual
+  nfs:
+    server: 10.42.1.10
+    path: /mnt/user/syncthing/ai-context
+  mountOptions:
+    - vers=4
+    - soft
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: obsidian-vault-nfs
+  namespace: mcp
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: manual
+  volumeName: obsidian-vault-nfs # bind to the static PV above
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: obsidian-mcp
+  namespace: mcp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: obsidian-mcp
+  template:
+    metadata:
+      labels:
+        app: obsidian-mcp
+    spec:
+      containers:
+        - name: obsidian-mcp
+          image: ghcr.io/jasonvandeventer/obsidian-mcp:v0.1.0
+          ports:
+            - containerPort: 8000
+          env:
+            - name: OBSIDIAN_VAULT_PATH
+              value: /vault
+          volumeMounts:
+            - name: vault
+              mountPath: /vault
+              readOnly: false
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+          readinessProbe:
+            tcpSocket:
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: vault
+          persistentVolumeClaim:
+            claimName: obsidian-vault-nfs
+            readOnly: false
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: obsidian-mcp
+  namespace: mcp
+spec:
+  type: NodePort
+  selector:
+    app: obsidian-mcp
+  ports:
+    - port: 80
+      targetPort: 8000
+      nodePort: 30081 # cloudflared (Unraid) -> http://<node>:30081

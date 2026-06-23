@@ -1,0 +1,35 @@
+# Green/Talos MCP servers (cartarch-mcp + obsidian-mcp) — syncs clusters/talos/manifests/mcp/.
+# Destination ns is mcp (the default for manifests that don't set their own); the
+# cartarch-mcp Role/RoleBinding carry an explicit cnpg-system namespace and land there,
+# and the NFS PV is cluster-scoped — all within this one Application (same as blue, whose
+# MCP app spanned mcp + mana-archive).
+#
+# ⚠ automated sync diverges from green's manual-first convention (root-app is declarative-
+#   only). Set per your spec; the first deploy still needs a human `argocd app sync root`
+#   then `mcp` before automated takes over. sync-wave 6: after cnpg-cartarch-prod (4), so
+#   the cnpg-system namespace + app exist before the cartarch-mcp RBAC targets them.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mcp
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "6"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/jasonvandeventer/vanfreckle-platform.git
+    targetRevision: main
+    path: clusters/talos/manifests/mcp
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: mcp
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
