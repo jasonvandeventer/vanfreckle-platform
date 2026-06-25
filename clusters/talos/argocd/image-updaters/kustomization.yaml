@@ -1,0 +1,10 @@
+# ImageUpdater CRs for green/Talos. Synced by the `image-updaters` child app
+# (../apps/image-updaters.yaml, sync-wave 7 — after the image-updater controller
+# + CRD at wave 5). Added 2026-06-25 to put the mana-archive ImageUpdater CR under
+# GitOps; before this it was applied imperatively and a manual delete (2026-06-23)
+# silently disabled auto-deploy.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: argocd
+resources:
+  - mana-archive.yaml
