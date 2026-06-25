@@ -1,3 +1,0 @@
-kustomize:
-  images:
-  - ghcr.io/jasonvandeventer/mana-archive=ghcr.io/jasonvandeventer/mana-archive:v4.0.22
