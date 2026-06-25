@@ -22,4 +22,4 @@ resources:
 # image-updater advances this newTag automatically as new semver tags ship to GHCR.
 images:
   - name: ghcr.io/jasonvandeventer/mana-archive
-    newTag: v4.0.19
+    newTag: v4.0.20
