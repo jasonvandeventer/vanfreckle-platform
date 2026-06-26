@@ -15,6 +15,7 @@ metadata:
     argocd.argoproj.io/sync-wave: "0"        # after the cred (-2), before any Cluster (Phase 9)
 spec:
   configuration:
+    retentionPolicy: "90d"
     destinationPath: s3://cartarch-cnpg-backups/
     endpointURL: https://99e379c3eabdfb70c6da73e35342de10.r2.cloudflarestorage.com
     s3Credentials:
