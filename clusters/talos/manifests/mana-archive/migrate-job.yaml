@@ -1,0 +1,40 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: mana-archive-migrate
+  namespace: cnpg-system
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 1
+  template:
+    spec:
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: migrate
+          image: ghcr.io/jasonvandeventer/mana-archive
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          command: ["/bin/sh", "-ec"]
+          args:
+            - |
+              export DATABASE_URL="$(python -c 'import os,urllib.parse as u; print("postgresql+psycopg://%s:%s@cartarch-prod-rw.cnpg-system.svc.cluster.local:5432/cartarch" % (u.quote(os.environ["PGUSER"],safe=""), u.quote(os.environ["PGPASSWORD"],safe="")))')"
+              alembic upgrade head
+              alembic current
+          env:
+            - name: PGUSER
+              valueFrom: { secretKeyRef: { name: cartarch-prod-app, key: username } }
+            - name: PGPASSWORD
+              valueFrom: { secretKeyRef: { name: cartarch-prod-app, key: password } }
+            - name: DATA_DIR
+              value: /tmp

@@ -17,9 +17,10 @@ kind: Kustomization
 resources:
   - deployment.yaml
   - service.yaml
+  - migrate-job.yaml
 
 # Pin v4.0.1 — the immediate deploy (overrides deployment.yaml's image tag). From here
 # image-updater advances this newTag automatically as new semver tags ship to GHCR.
 images:
   - name: ghcr.io/jasonvandeventer/mana-archive
-    newTag: v4.0.30
+    newTag: v4.0.31
