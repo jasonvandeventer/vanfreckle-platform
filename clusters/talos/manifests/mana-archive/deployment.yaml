@@ -57,7 +57,13 @@ spec:
             - |
               export DATABASE_URL="$(python -c 'import os,urllib.parse as u; print("postgresql+psycopg://%s:%s@cartarch-prod-rw.cnpg-system.svc.cluster.local:5432/cartarch" % (u.quote(os.environ["PGUSER"],safe=""), u.quote(os.environ["PGPASSWORD"],safe="")))')"
               echo "cartarch -> cartarch-prod-rw.cnpg-system.svc:5432/cartarch as $PGUSER"
-              exec uvicorn app.main:app --host 0.0.0.0 --port 8000
+              # --proxy-headers (#66): honor X-Forwarded-Proto/For from cloudflared so
+              # request.url.scheme reads https (not the internal http cloudflared
+              # forwards after TLS termination). --forwarded-allow-ips='*' trusts the
+              # forwarded headers: the pod is only reachable via the in-cluster service
+              # from cloudflared, so the immediate peer is always trusted infra. (Tighten
+              # to the pod/service CIDR if that ever stops being true.)
+              exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips='*'
           env:
             # --- DB credentials: from the same-namespace CNPG app secret ---
             - name: PGUSER
@@ -85,6 +91,12 @@ spec:
             # (emptyDir below). No SQLite lives here on PG.
             - name: DATA_DIR
               value: /data
+            # PUBLIC_BASE_URL is the canonical scheme+host for emailed links
+            # (password-reset). Non-secret. Kept as the canonical identity for
+            # emailed/absolute links even though uvicorn now runs with
+            # --proxy-headers (above), so request.url.scheme also reads https.
+            - name: PUBLIC_BASE_URL
+              value: https://cartarch.com
           ports:
             - containerPort: 8000
           readinessProbe: # gates tunnel traffic until the app is actually serving
