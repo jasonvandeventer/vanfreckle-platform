@@ -1,0 +1,43 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: mana-archive-price-ingest
+  namespace: cnpg-system
+spec:
+  schedule: "0 16 * * *"
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 3600
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            fsGroup: 1000
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: price-ingest
+              image: ghcr.io/jasonvandeventer/mana-archive
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: ["ALL"]
+              command: ["/bin/sh", "-ec"]
+              args:
+                - |
+                  export DATABASE_URL="$(python -c 'import os,urllib.parse as u; print("postgresql+psycopg://%s:%s@cartarch-prod-rw.cnpg-system.svc.cluster.local:5432/cartarch" % (u.quote(os.environ["PGUSER"],safe=""), u.quote(os.environ["PGPASSWORD"],safe="")))')"
+                  python -m app.jobs.price_ingest
+              env:
+                - name: PGUSER
+                  valueFrom: { secretKeyRef: { name: cartarch-prod-app, key: username } }
+                - name: PGPASSWORD
+                  valueFrom: { secretKeyRef: { name: cartarch-prod-app, key: password } }
+                - name: DATA_DIR
+                  value: /tmp

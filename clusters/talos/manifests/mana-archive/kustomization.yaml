@@ -18,6 +18,7 @@ resources:
   - deployment.yaml
   - service.yaml
   - migrate-job.yaml
+  - cronjob.yaml
 
 # Pin v4.0.1 — the immediate deploy (overrides deployment.yaml's image tag). From here
 # image-updater advances this newTag automatically as new semver tags ship to GHCR.
