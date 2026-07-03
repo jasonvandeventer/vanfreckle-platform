@@ -53,3 +53,5 @@ cutover.sh
 # Raw github-mcp PAT drop file — feeds kubeseal, NEVER committed (only the
 # SealedSecret github-mcp-sealedsecret.yaml is). Delete after sealing.
 .github-pat
+runs.db
+clusters/talos/manifests/mana-archive/price-ingest-job.yaml
