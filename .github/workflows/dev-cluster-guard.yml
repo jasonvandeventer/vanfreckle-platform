@@ -9,20 +9,4 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: dev cluster must never archive to prod backup path
-        run: |
-          set -uo pipefail
-          DIR=clusters/talos/manifests/cnpg-cartarch-dev
-          [ -d "$DIR" ] || { echo "dev manifest dir absent, nothing to guard"; exit 0; }
-          fail=0
-          if grep -rn 'isWALArchiver: *true' "$DIR"; then
-            echo "::error::isWALArchiver: true in dev manifests"; fail=1
-          fi
-          for f in $(grep -rl 'plugins:' "$DIR"); do
-            if ! grep -q 'isWALArchiver: *false' "$f"; then
-              echo "::error file=$f::plugins block without explicit isWALArchiver: false"; fail=1
-            fi
-          done
-          if grep -rn 'kind: *ScheduledBackup' "$DIR"; then
-            echo "::error::ScheduledBackup resource in dev manifest dir"; fail=1
-          fi
-          exit $fail
+        run: bash ci/check-dev-no-archiving.sh
