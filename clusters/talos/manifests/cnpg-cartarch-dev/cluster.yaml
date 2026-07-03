@@ -48,3 +48,6 @@ spec:
     parameters:
       shared_buffers: 64MB
       max_connections: "50"
+  plugins:
+    - name: barman-cloud.cloudnative-pg.io
+      isWALArchiver: true
