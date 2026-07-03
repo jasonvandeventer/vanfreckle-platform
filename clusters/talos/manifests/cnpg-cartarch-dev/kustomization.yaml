@@ -1,0 +1,9 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: cartarch-dev
+resources:
+  - namespace.yaml
+  - cnpg-r2-creds-dev.sealedsecret.yaml
+  - cnpg-objectstore-dev.yaml
+  - cluster.yaml
+  - sanitize.yaml

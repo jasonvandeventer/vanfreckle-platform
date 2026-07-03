@@ -1,0 +1,69 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cartarch-dev-sanitize-sql
+  namespace: cartarch-dev
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+data:
+  sanitize.sql: |
+    UPDATE users SET password_hash = '$argon2id$v=19$m=65536,t=3,p=4$qRs2Ufu4RAbNI7Z4MABH6w$ub2kHmLF+xZ+MIunajLTfxLp1Knq3xiqzxHIOtjgXYE';
+    UPDATE users SET
+      username = 'devuser_' || id,
+      display_name = CASE WHEN display_name IS NULL THEN NULL ELSE 'Dev User ' || id END;
+    UPDATE users SET username = 'devadmin', is_admin = true
+      WHERE id = (SELECT MIN(id) FROM users);
+    DELETE FROM password_reset_tokens;
+    UPDATE users SET last_signed_in_at = NULL, last_active_at = NULL;
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: cartarch-dev-sanitize
+  namespace: cartarch-dev
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: sanitize
+          image: ghcr.io/cloudnative-pg/postgresql:18.3-system-trixie
+          command:
+            - bash
+            - -c
+            - |
+              set -euo pipefail
+              # Guard: refuse to run against anything but the dev cluster host.
+              if [[ "${PGHOST}" != cartarch-dev-rw* ]]; then
+                echo "REFUSING: PGHOST=${PGHOST} is not the dev cluster. Sanitize aborted."
+                exit 1
+              fi
+              psql -v ON_ERROR_STOP=1 -f /sql/sanitize.sql
+              echo "Sanitization complete."
+          env:
+            - name: PGHOST
+              value: cartarch-dev-rw
+            - name: PGDATABASE
+              value: cartarch
+            - name: PGUSER
+              valueFrom:
+                secretKeyRef:
+                  name: cartarch-dev-superuser
+                  key: username
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: cartarch-dev-superuser
+                  key: password
+          volumeMounts:
+            - name: sql
+              mountPath: /sql
+      volumes:
+        - name: sql
+          configMap:
+            name: cartarch-dev-sanitize-sql

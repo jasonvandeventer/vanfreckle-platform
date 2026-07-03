@@ -1,0 +1,23 @@
+apiVersion: barmancloud.cnpg.io/v1
+kind: ObjectStore
+metadata:
+  name: cnpg-r2-store-dev
+  namespace: cartarch-dev
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  # No retentionPolicy: read-only credential, dev never writes or prunes.
+  configuration:
+    destinationPath: s3://cartarch-cnpg-backups/
+    endpointURL: https://99e379c3eabdfb70c6da73e35342de10.r2.cloudflarestorage.com
+    s3Credentials:
+      accessKeyId:
+        name: cnpg-r2-creds-dev
+        key: AWS_ACCESS_KEY_ID
+      secretAccessKey:
+        name: cnpg-r2-creds-dev
+        key: AWS_SECRET_ACCESS_KEY
+    wal:
+      compression: gzip
+    data:
+      compression: gzip

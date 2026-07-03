@@ -20,6 +20,7 @@ resources:
   - cnpg-crds.yaml
   - cnpg-backup-config.yaml
   - cnpg-cartarch-prod.yaml
+  - cnpg-cartarch-dev.yaml
   # cartarch app auto-deploy wiring (sync-waves 5→6→7):
   - image-updater.yaml # the controller + ImageUpdater CRD
   - image-updaters.yaml # the ImageUpdater CRs (clusters/talos/argocd/image-updaters), wave 7

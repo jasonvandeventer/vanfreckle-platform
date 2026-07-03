@@ -1,0 +1,50 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: cartarch-dev
+  namespace: cartarch-dev
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+spec:
+  instances: 1
+  imageName: ghcr.io/cloudnative-pg/postgresql:18.3-system-trixie
+  primaryUpdateStrategy: unsupervised
+  enableSuperuserAccess: true
+
+  storage:
+    size: 5Gi
+    storageClass: longhorn-ssd
+
+  # No affinity: single instance, nothing to anti-affine.
+
+  # Recovery bootstrap: hydrate from prod's R2 backup, READ-ONLY.
+  bootstrap:
+    recovery:
+      source: cartarch-prod-r2
+
+  externalClusters:
+    - name: cartarch-prod-r2
+      plugin:
+        name: barman-cloud.cloudnative-pg.io
+        parameters:
+          barmanObjectName: cnpg-r2-store-dev
+          serverName: cartarch-prod
+
+  # NO top-level `plugins:` block. This is the archiving prohibition.
+  # A plugins block with isWALArchiver + serverName cartarch-prod would
+  # write dev WAL into prod's R2 path and corrupt the prod backup chain.
+  # externalClusters above is recovery-read only, NOT an archiver.
+  # Guarded by ci/check-dev-no-archiving.sh.
+
+  resources:
+    requests:
+      memory: 256Mi
+      cpu: 100m
+    limits:
+      memory: 512Mi
+      cpu: "500m"
+
+  postgresql:
+    parameters:
+      shared_buffers: 64MB
+      max_connections: "50"
