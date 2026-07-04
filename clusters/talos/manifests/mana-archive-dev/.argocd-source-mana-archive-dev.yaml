@@ -1,0 +1,3 @@
+kustomize:
+  images:
+  - ghcr.io/jasonvandeventer/mana-archive=ghcr.io/jasonvandeventer/mana-archive:main@sha256:cb3dc9eceaa6eff221302dc763f09ea1d126e65699db029221c7009fea3c56f4
