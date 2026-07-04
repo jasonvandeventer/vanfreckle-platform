@@ -3,8 +3,19 @@
 # + CRD at wave 5). Added 2026-06-25 to put the mana-archive ImageUpdater CR under
 # GitOps; before this it was applied imperatively and a manual delete (2026-06-23)
 # silently disabled auto-deploy.
+# NAMING (near-duplicate check, index Operational follow-up, resolved 2026-07-03):
+# there are TWO app-of-apps children whose names differ by one letter —
+# `image-updater` (../apps/image-updater.yaml, the Helm-installed CONTROLLER + CRD) and
+# `image-updaters` (../apps/image-updaters.yaml, which syncs THIS directory: the set of
+# ImageUpdater CRs). Checked and confirmed NOT an accidental duplicate: singular = the
+# one controller, plural = the CR set — now unambiguous because this set genuinely holds
+# more than one CR (prod semver + dev digest). Both apps are live/Synced/Healthy; a hard
+# rename was declined this session because it would force a wider prune-enabled root sync
+# outside the Phase B scoped `--resource ...mana-archive-dev` sync (available later if the
+# one-letter kubectl-list ambiguity is judged worth the controller prune/recreate churn).
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: argocd
 resources:
-  - mana-archive.yaml
+  - mana-archive.yaml # prod CR — semver
+  - mana-archive-dev.yaml # dev CR — digest on :main

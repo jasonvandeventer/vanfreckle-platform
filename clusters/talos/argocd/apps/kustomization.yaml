@@ -25,6 +25,7 @@ resources:
   - image-updater.yaml # the controller + ImageUpdater CRD
   - image-updaters.yaml # the ImageUpdater CRs (clusters/talos/argocd/image-updaters), wave 7
   - mana-archive.yaml # the app Deployment + Service (cnpg-system)
+  - mana-archive-dev.yaml # the DEV app Deployment + Service (cartarch-dev), wave 6
   # MCP servers (moved from blue), wave 6:
   - mcp.yaml
   # Discord -> GitHub Issues intake bot (own `intake` ns), wave 7:

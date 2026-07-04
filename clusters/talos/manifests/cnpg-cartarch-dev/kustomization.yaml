@@ -4,6 +4,7 @@ namespace: cartarch-dev
 resources:
   - namespace.yaml
   - cnpg-r2-creds-dev.sealedsecret.yaml
+  - cartarch-dev-app-role.sealedsecret.yaml
   - cnpg-objectstore-dev.yaml
   - cluster.yaml
   - sanitize.yaml

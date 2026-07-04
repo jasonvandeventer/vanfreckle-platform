@@ -1,0 +1,38 @@
+# cartarch DEV app — ArgoCD Application (app-of-apps child). Syncs the dev Deployment +
+# Service + PreSync migrate Job from clusters/talos/manifests/mana-archive-dev/ into the
+# cartarch-dev namespace (co-located with the cartarch-dev CNPG cluster; the managed-role
+# secret + cartarch-dev-rw service resolve same-ns).
+#
+# automated + prune + selfHeal — same posture as the dev DB app (cnpg-cartarch-dev) and
+# required so the dev image-updater's digest writeback auto-syncs. Blast radius is the
+# rebuildable dev env only. NOTE: root is manual-sync, so this app is created on the next
+# `argocd app sync root --resource argoproj.io:Application:mana-archive-dev`.
+#
+# ⚠ REHYDRATE DISCIPLINE (Invariant): the dev app is now permanently present, so every
+# rehydrate must scale mana-archive-dev to 0 BEFORE cluster teardown and resume only
+# after the sanitize Job completes — un-sanitized prod data must never be reachable. The
+# Phase C hydrate command encodes this; until then it is runbook discipline.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mana-archive-dev
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "6" # after cnpg-cartarch-dev (4) — DB + managed role up first
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/jasonvandeventer/vanfreckle-platform.git
+    targetRevision: main
+    path: clusters/talos/manifests/mana-archive-dev
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cartarch-dev
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true

@@ -36,6 +36,25 @@ spec:
   # externalClusters above is recovery-read only, NOT an archiver.
   # Guarded by ci/check-dev-no-archiving.sh.
 
+  # App DB credentials (Phase B). This cluster is RECOVERY-bootstrapped, so it
+  # carries prod's roles with prod's password HASHES. The app connects as role
+  # `cartarch` (the prod db owner — prod parity: cartarch-prod-app.username=cartarch,
+  # db `cartarch`), whose password here is prod's unknown hash and therefore NOT
+  # usable. Declaring the role under managed.roles with a passwordSecret makes the
+  # operator RESET its password to a known dev value on every reconcile — including
+  # after each rehydrate, where recovery restores the prod hash again. This is the
+  # only way to authenticate as `cartarch` in dev; it is not routed through the
+  # superuser secret (would reproduce the enableSuperuserAccess finding here).
+  # The A2 guard asserts only on plugins/isWALArchiver/ScheduledBackup — managed
+  # roles do not trip it.
+  managed:
+    roles:
+      - name: cartarch
+        ensure: present
+        login: true
+        passwordSecret:
+          name: cartarch-dev-app-role
+
   resources:
     requests:
       memory: 256Mi

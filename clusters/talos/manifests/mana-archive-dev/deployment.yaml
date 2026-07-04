@@ -1,0 +1,122 @@
+# cartarch (mana-archive) DEV app — vanfreckle-platform Phase B.
+#
+# Runs IN the cartarch-dev namespace, co-located with the cartarch-dev CNPG cluster,
+# so the managed-role secret (cartarch-dev-app-role) + the cartarch-dev-rw service
+# both resolve same-namespace (mirrors prod's cnpg-system co-location).
+#
+# DELTAS from prod's Deployment (../mana-archive/deployment.yaml), all intentional:
+#   - namespace cartarch-dev (not cnpg-system).
+#   - image :main (mutable dev stream; the dev image-updater tracks its DIGEST and
+#     writes .argocd-source-mana-archive-dev.yaml — see argocd/image-updaters).
+#   - DB creds from the CNPG MANAGED-ROLE secret cartarch-dev-app-role (role `cartarch`,
+#     password reset to a known dev value on every hydrate), NOT the CNPG-default
+#     `cartarch-dev-app` secret (that is role `app` on the empty `app` db and cannot
+#     read the recovered `cartarch` tables). DATABASE_URL points at cartarch-dev-rw / db
+#     `cartarch`.
+#   - DEV_MODE=false (prod parity — exercises the SESSION_SECRET_KEY / RESEND_API_KEY /
+#     PUBLIC_BASE_URL boot checks and Secure cookies), so dev needs real-shaped values
+#     for all of them (mana-archive-dev-secrets SealedSecret + plain PUBLIC_BASE_URL).
+#   - no cloudflared, so no --proxy-headers (there is no TLS-terminating proxy in front
+#     of the dev pod; access is ClusterIP + port-forward until the Tailscale ingress
+#     lands — see the ingress follow-up).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mana-archive-dev
+  namespace: cartarch-dev
+  labels:
+    app: mana-archive-dev
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: mana-archive-dev
+  template:
+    metadata:
+      labels:
+        app: mana-archive-dev
+    spec:
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: mana-archive-dev
+          image: ghcr.io/jasonvandeventer/mana-archive:main
+          imagePullPolicy: Always # :main is mutable — always re-pull on restart
+          # Recompose a SQLAlchemy psycopg-v3 URL from the managed-role secret's PARTS
+          # (password URL-encoded), identical to prod's deployment + migrate Job, then
+          # exec the normal uvicorn entrypoint.
+          command: ["/bin/sh", "-ec"]
+          args:
+            - |
+              export DATABASE_URL="$(python -c 'import os,urllib.parse as u; print("postgresql+psycopg://%s:%s@cartarch-dev-rw.cartarch-dev.svc.cluster.local:5432/cartarch" % (u.quote(os.environ["PGUSER"],safe=""), u.quote(os.environ["PGPASSWORD"],safe="")))')"
+              echo "cartarch-dev -> cartarch-dev-rw.cartarch-dev.svc:5432/cartarch as $PGUSER"
+              exec uvicorn app.main:app --host 0.0.0.0 --port 8000
+          env:
+            # --- DB credentials: from the same-namespace CNPG managed-role secret ---
+            - name: PGUSER
+              valueFrom:
+                secretKeyRef:
+                  name: cartarch-dev-app-role
+                  key: username
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: cartarch-dev-app-role
+                  key: password
+            # --- DEV_MODE=false: prod parity, so the boot checks below are exercised ---
+            - name: DEV_MODE
+              value: "false"
+            - name: SESSION_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: mana-archive-dev-secrets
+                  key: SESSION_SECRET_KEY
+            - name: RESEND_API_KEY # dummy dev value; passes the non-empty boot check (sends fail, not a dev flow)
+              valueFrom:
+                secretKeyRef:
+                  name: mana-archive-dev-secrets
+                  key: RESEND_API_KEY
+            - name: METRICS_TOKEN # /metrics fails closed without it; dev value keeps it testable
+              valueFrom:
+                secretKeyRef:
+                  name: mana-archive-dev-secrets
+                  key: METRICS_TOKEN
+            - name: DATA_DIR
+              value: /data
+            # PUBLIC_BASE_URL: non-secret. DEV_MODE=false validates it is a bare https
+            # origin (scheme+host only, not reachability). PLACEHOLDER until the Tailscale
+            # dev ingress lands — swap for the real https://<name>.ts.net URL then.
+            - name: PUBLIC_BASE_URL
+              value: https://cartarch-dev.ts.net
+          ports:
+            - containerPort: 8000
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8000
+            initialDelaySeconds: 20
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 768Mi
+          volumeMounts:
+            - name: scratch
+              mountPath: /data
+      volumes:
+        - name: scratch
+          emptyDir: {} # ephemeral; regenerable panels_cache only — dev app is stateless

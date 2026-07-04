@@ -2,8 +2,8 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 # Green/Talos cartarch app. Now synced by clusters/talos/argocd/apps/mana-archive.yaml
-# and under argocd-image-updater (semver) — the updater writes future tag bumps back to
-# THIS `newTag`. The Phase C dry-run is done, so auto-bump is enabled.
+# and under argocd-image-updater (semver). EXPECTED-STALE: the updater promotes via
+# .argocd-source-mana-archive.yaml, NOT this kustomization's newTag.
 #
 # The app runs IN cnpg-system (co-located with the cartarch-prod CNPG cluster), so the
 # CNPG app secret + the cartarch-prod-rw service resolve same-namespace. cnpg-system
@@ -20,8 +20,10 @@ resources:
   - migrate-job.yaml
   - cronjob.yaml
 
-# Pin v4.0.1 — the immediate deploy (overrides deployment.yaml's image tag). From here
-# image-updater advances this newTag automatically as new semver tags ship to GHCR.
+# EXPECTED-STALE: image-updater promotes via .argocd-source-mana-archive.yaml,
+# not this field. Never `kubectl apply -k` this directory directly; a direct
+# apply would deploy this old tag. Bump only as deliberate cleanup.
+# See PROJECT-PORTFOLIO-INDEX Operational reference.
 images:
   - name: ghcr.io/jasonvandeventer/mana-archive
     newTag: v4.1.4

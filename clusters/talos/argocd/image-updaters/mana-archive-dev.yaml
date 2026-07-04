@@ -1,0 +1,33 @@
+# ImageUpdater CR for the cartarch DEV app on GREEN/Talos (Phase B).
+#
+# Tracks the MUTABLE `main` tag by DIGEST (not semver like prod's CR): every push to
+# cartarch main rebuilds `:main` (publish-dev.yml), image-updater notices the new digest
+# and writes it to .argocd-source-mana-archive-dev.yaml, ArgoCD auto-syncs the dev app.
+# Digest strategy avoids the newest-build / regexp tag-sort flakiness a semver stream on
+# a single mutable tag would hit. The immutable `:main-<sha7>` tags exist for traceability
+# / rollback pinning and are deliberately NOT tracked here.
+#
+# Distinct name (mana-archive-dev-updater) and distinct namePattern (mana-archive-dev)
+# from prod's CR (mana-archive-updater / mana-archive) so the two never cross-target.
+apiVersion: argocd-image-updater.argoproj.io/v1alpha1
+kind: ImageUpdater
+metadata:
+  name: mana-archive-dev-updater
+  namespace: argocd
+spec:
+  writeBackConfig:
+    method: "git:secret:argocd/image-updater-git-creds"
+    gitConfig:
+      branch: "main"
+
+  applicationRefs:
+    - namePattern: "mana-archive-dev"
+      images:
+        - alias: "manaarchivedev"
+          # Tag `main` in the ref + digest strategy = track that mutable tag's digest.
+          imageName: "ghcr.io/jasonvandeventer/mana-archive:main"
+          commonUpdateSettings:
+            updateStrategy: "digest"
+          manifestTargets:
+            kustomize:
+              name: "ghcr.io/jasonvandeventer/mana-archive"
