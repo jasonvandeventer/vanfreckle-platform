@@ -1,0 +1,45 @@
+# Tailscale Kubernetes operator (Helm chart, PINNED). Installs the operator, the
+# tailscale.com CRDs, and the `tailscale` IngressClass that the cartarch-dev Ingress
+# (../../manifests/mana-archive-dev/ingress.yaml) selects via ingressClassName: tailscale.
+#
+# OAuth: values leave oauth.clientId/clientSecret EMPTY on purpose — the chart then reads
+# the precreated `operator-oauth` Secret (keys client_id/client_secret), which the
+# `tailscale` app (wave 3) applies from a SealedSecret. Secrets stay out of Helm values /
+# git. Chart defaults otherwise: installCRDs=true, operatorConfig.defaultTags=
+# [tag:k8s-operator], apiServerProxyConfig disabled (we do NOT expose the K8s API server).
+#
+# ⚠ automated sync (like image-updater.yaml / mana-archive.yaml). Requires the OAuth
+# client + tailnet ACL tagOwners (tag:k8s-operator, tag:k8s) and MagicDNS + HTTPS enabled
+# on the tailnet — tailnet-policy prerequisites, not expressible in this repo.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: tailscale-operator
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "5" # after the tailscale ns + operator-oauth secret (wave 3)
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://pkgs.tailscale.com/helmcharts
+    chart: tailscale-operator
+    targetRevision: 1.98.4
+    helm:
+      releaseName: tailscale-operator
+      valuesObject:
+        # Empty → operator mounts the precreated operator-oauth Secret instead.
+        oauth:
+          clientId: ""
+          clientSecret: ""
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: tailscale
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true
+      - CreateNamespace=false # the tailscale app creates the (privileged-labeled) namespace

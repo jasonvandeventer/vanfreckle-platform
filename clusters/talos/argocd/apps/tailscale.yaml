@@ -1,0 +1,29 @@
+# Tailscale operator prerequisites — namespace + OAuth SealedSecret. Syncs
+# clusters/talos/manifests/tailscale/ into the tailscale namespace. Must land BEFORE
+# the operator chart (tailscale-operator.yaml, wave 5) so the operator pod can mount the
+# operator-oauth Secret on first start. Root is manual-sync, so created on the next
+# `argocd app sync root --resource argoproj.io:Application:tailscale`.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: tailscale
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "3" # after namespaces (-2), before the operator chart (5)
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/jasonvandeventer/vanfreckle-platform.git
+    targetRevision: main
+    path: clusters/talos/manifests/tailscale
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: tailscale
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true

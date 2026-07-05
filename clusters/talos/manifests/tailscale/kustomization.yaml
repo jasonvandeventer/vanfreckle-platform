@@ -1,0 +1,11 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Prerequisites for the tailscale-operator Helm app (../../argocd/apps/tailscale-operator.yaml):
+# the namespace (labeled privileged for the tailscaled proxies) and the OAuth client
+# credentials the operator authenticates with. The operator chart is installed with EMPTY
+# oauth values, so it reads the precreated `operator-oauth` Secret (keys client_id /
+# client_secret) — which is why the creds live here as a SealedSecret, never in Helm values.
+resources:
+  - namespace.yaml
+  - operator-oauth.sealedsecret.yaml
