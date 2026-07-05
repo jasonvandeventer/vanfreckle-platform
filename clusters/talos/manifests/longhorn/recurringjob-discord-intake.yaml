@@ -1,0 +1,25 @@
+# Longhorn RecurringJob — Tier 0 second backup tier (2026-07-04).
+#
+# Backs up discord-intake-data (the only live non-DB Longhorn PVC) to the R2
+# BackupTarget. Deliberately NOT in the `default` group: EVERY volume on this cluster
+# carries `recurring-job-group.longhorn.io/default=enabled` (Longhorn auto-adds new
+# volumes to default), so a default-group job would also back up the prod CNPG DB
+# volumes (cartarch-prod-1/2/3) — which are already covered by R2 WAL + the rclone
+# mirror and must not get crash-consistent Longhorn snapshots. Instead this job has NO
+# group and binds ONLY to the intake volume via the per-volume label
+# `recurring-job.longhorn.io/discord-intake-backup=enabled` (applied to that Volume CR;
+# the Volume is Longhorn-managed/dynamic so the label binding is a documented one-time
+# step, recorded in the Tier 0 spec note).
+apiVersion: longhorn.io/v1beta2
+kind: RecurringJob
+metadata:
+  name: discord-intake-backup
+  namespace: longhorn-system
+spec:
+  name: discord-intake-backup
+  task: backup
+  cron: "30 3 * * *" # daily 03:30 UTC (offset from the 00:00 r2-mirror timer)
+  retain: 7 # ~a week of daily backups; 1Gi low-churn volume, trivial R2 footprint
+  concurrency: 1
+  groups: [] # NO group — see header; bound by per-volume label only
+  labels: {}

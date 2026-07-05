@@ -4,3 +4,4 @@ resources:
   - longhorn-r2-secret.sealedsecret.yaml
   - backuptarget.yaml
   - storageclass-ssd.yaml
+  - recurringjob-discord-intake.yaml
