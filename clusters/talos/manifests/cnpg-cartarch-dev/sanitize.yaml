@@ -15,6 +15,22 @@ data:
       WHERE id = (SELECT MIN(id) FROM users);
     DELETE FROM password_reset_tokens;
     UPDATE users SET last_signed_in_at = NULL, last_active_at = NULL;
+    -- Denormalized identity snapshots (added 2026-07-04 after a schema audit: the block
+    -- above sanitized `users` ONLY, but real player names and username snapshots also live
+    -- on game_seats/games/trades, and playgroups carry a user-chosen group name. This
+    -- schema has NO email column — login and password-reset are username-keyed (main.py
+    -- looks the "email" form field up against users.username) — so there is nothing
+    -- email-shaped to scramble. id-derived + deterministic so it stays rehydrate-stable.
+    UPDATE game_seats SET
+      player_name       = 'devuser_' || COALESCE(user_id::text, 'seat' || id),
+      user_name_at_game = CASE WHEN user_name_at_game IS NULL THEN NULL
+                               ELSE 'devuser_' || COALESCE(user_id::text, 'seat' || id) END;
+    UPDATE games SET user_name_at_game = 'devuser_' || user_id
+      WHERE user_name_at_game IS NOT NULL;
+    UPDATE trades SET
+      proposer_name_at_trade  = CASE WHEN proposer_name_at_trade  IS NULL THEN NULL ELSE 'devuser_' || proposer_user_id  END,
+      recipient_name_at_trade = CASE WHEN recipient_name_at_trade IS NULL THEN NULL ELSE 'devuser_' || recipient_user_id END;
+    UPDATE playgroups SET name = 'Dev Playgroup ' || id;
 ---
 apiVersion: batch/v1
 kind: Job
