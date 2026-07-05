@@ -85,10 +85,10 @@ spec:
             - name: DATA_DIR
               value: /data
             # PUBLIC_BASE_URL: non-secret. DEV_MODE=false validates it is a bare https
-            # origin (scheme+host only, not reachability). PLACEHOLDER until the Tailscale
-            # dev ingress lands — swap for the real https://<name>.ts.net URL then.
+            # origin (scheme+host only). The real Tailscale ingress FQDN (device
+            # `cartarch-dev` on tailnet dhole-tailor.ts.net, Let's Encrypt cert).
             - name: PUBLIC_BASE_URL
-              value: https://cartarch-dev.ts.net
+              value: https://cartarch-dev.dhole-tailor.ts.net
           ports:
             - containerPort: 8000
           readinessProbe:
