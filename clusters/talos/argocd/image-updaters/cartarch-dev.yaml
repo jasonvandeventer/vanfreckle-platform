@@ -2,17 +2,17 @@
 #
 # Tracks the MUTABLE `main` tag by DIGEST (not semver like prod's CR): every push to
 # cartarch main rebuilds `:main` (publish-dev.yml), image-updater notices the new digest
-# and writes it to .argocd-source-mana-archive-dev.yaml, ArgoCD auto-syncs the dev app.
+# and writes it to .argocd-source-cartarch-dev.yaml, ArgoCD auto-syncs the dev app.
 # Digest strategy avoids the newest-build / regexp tag-sort flakiness a semver stream on
 # a single mutable tag would hit. The immutable `:main-<sha7>` tags exist for traceability
 # / rollback pinning and are deliberately NOT tracked here.
 #
-# Distinct name (mana-archive-dev-updater) and distinct namePattern (mana-archive-dev)
+# Distinct name (cartarch-dev-updater) and distinct namePattern (cartarch-dev)
 # from prod's CR (mana-archive-updater / mana-archive) so the two never cross-target.
 apiVersion: argocd-image-updater.argoproj.io/v1alpha1
 kind: ImageUpdater
 metadata:
-  name: mana-archive-dev-updater
+  name: cartarch-dev-updater
   namespace: argocd
 spec:
   writeBackConfig:
@@ -21,13 +21,13 @@ spec:
       branch: "main"
 
   applicationRefs:
-    - namePattern: "mana-archive-dev"
+    - namePattern: "cartarch-dev"
       images:
-        - alias: "manaarchivedev"
+        - alias: "cartarchdev"
           # Tag `main` in the ref + digest strategy = track that mutable tag's digest.
-          imageName: "ghcr.io/jasonvandeventer/mana-archive:main"
+          imageName: "ghcr.io/jasonvandeventer/cartarch:main"
           commonUpdateSettings:
             updateStrategy: "digest"
           manifestTargets:
             kustomize:
-              name: "ghcr.io/jasonvandeventer/mana-archive"
+              name: "ghcr.io/jasonvandeventer/cartarch"

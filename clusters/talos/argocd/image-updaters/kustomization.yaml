@@ -18,4 +18,4 @@ kind: Kustomization
 namespace: argocd
 resources:
   - mana-archive.yaml # prod CR — semver
-  - mana-archive-dev.yaml # dev CR — digest on :main
+  - cartarch-dev.yaml # dev CR — digest on :main

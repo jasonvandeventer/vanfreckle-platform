@@ -1,4 +1,4 @@
-# cartarch (mana-archive) DEV app — vanfreckle-platform Phase B.
+# cartarch DEV app — vanfreckle-platform Phase B.
 #
 # Runs IN the cartarch-dev namespace, co-located with the cartarch-dev CNPG cluster,
 # so the managed-role secret (cartarch-dev-app-role) + the cartarch-dev-rw service
@@ -7,7 +7,7 @@
 # DELTAS from prod's Deployment (../mana-archive/deployment.yaml), all intentional:
 #   - namespace cartarch-dev (not cnpg-system).
 #   - image :main (mutable dev stream; the dev image-updater tracks its DIGEST and
-#     writes .argocd-source-mana-archive-dev.yaml — see argocd/image-updaters).
+#     writes .argocd-source-cartarch-dev.yaml — see argocd/image-updaters).
 #   - DB creds from the CNPG MANAGED-ROLE secret cartarch-dev-app-role (role `cartarch`,
 #     password reset to a known dev value on every hydrate), NOT the CNPG-default
 #     `cartarch-dev-app` secret (that is role `app` on the empty `app` db and cannot
@@ -15,33 +15,33 @@
 #     `cartarch`.
 #   - DEV_MODE=false (prod parity — exercises the SESSION_SECRET_KEY / RESEND_API_KEY /
 #     PUBLIC_BASE_URL boot checks and Secure cookies), so dev needs real-shaped values
-#     for all of them (mana-archive-dev-secrets SealedSecret + plain PUBLIC_BASE_URL).
+#     for all of them (cartarch-dev-secrets SealedSecret + plain PUBLIC_BASE_URL).
 #   - no cloudflared, so no --proxy-headers (there is no TLS-terminating proxy in front
 #     of the dev pod; access is ClusterIP + port-forward until the Tailscale ingress
 #     lands — see the ingress follow-up).
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: mana-archive-dev
+  name: cartarch-dev
   namespace: cartarch-dev
   labels:
-    app: mana-archive-dev
+    app: cartarch-dev
 spec:
   replicas: 1
   strategy:
     type: Recreate
   selector:
     matchLabels:
-      app: mana-archive-dev
+      app: cartarch-dev
   template:
     metadata:
       labels:
-        app: mana-archive-dev
+        app: cartarch-dev
     spec:
       terminationGracePeriodSeconds: 60
       containers:
-        - name: mana-archive-dev
-          image: ghcr.io/jasonvandeventer/mana-archive:main
+        - name: cartarch-dev
+          image: ghcr.io/jasonvandeventer/cartarch:main
           imagePullPolicy: Always # :main is mutable — always re-pull on restart
           # Recompose a SQLAlchemy psycopg-v3 URL from the managed-role secret's PARTS
           # (password URL-encoded), identical to prod's deployment + migrate Job, then
@@ -70,17 +70,17 @@ spec:
             - name: SESSION_SECRET_KEY
               valueFrom:
                 secretKeyRef:
-                  name: mana-archive-dev-secrets
+                  name: cartarch-dev-secrets
                   key: SESSION_SECRET_KEY
             - name: RESEND_API_KEY # dummy dev value; passes the non-empty boot check (sends fail, not a dev flow)
               valueFrom:
                 secretKeyRef:
-                  name: mana-archive-dev-secrets
+                  name: cartarch-dev-secrets
                   key: RESEND_API_KEY
             - name: METRICS_TOKEN # /metrics fails closed without it; dev value keeps it testable
               valueFrom:
                 secretKeyRef:
-                  name: mana-archive-dev-secrets
+                  name: cartarch-dev-secrets
                   key: METRICS_TOKEN
             - name: DATA_DIR
               value: /data

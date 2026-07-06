@@ -25,7 +25,7 @@ resources:
   - image-updater.yaml # the controller + ImageUpdater CRD
   - image-updaters.yaml # the ImageUpdater CRs (clusters/talos/argocd/image-updaters), wave 7
   - mana-archive.yaml # the app Deployment + Service (cnpg-system)
-  - mana-archive-dev.yaml # the DEV app Deployment + Service (cartarch-dev), wave 6
+  - cartarch-dev.yaml # the DEV app Deployment + Service (cartarch-dev), wave 6
   # Tailscale operator (dev ingress), waves 3 (ns+oauth secret) → 5 (chart):
   - tailscale.yaml # namespace + operator-oauth SealedSecret
   - tailscale-operator.yaml # the operator Helm chart (pinned) + tailscale IngressClass

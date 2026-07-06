@@ -1,19 +1,19 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: mana-archive-dev
+  name: cartarch-dev
   namespace: cartarch-dev
   labels:
-    app: mana-archive-dev
+    app: cartarch-dev
 # ClusterIP: the Tailscale operator is NOT deployed on green, so there is no dev
-# ingress yet. Access is `kubectl -n cartarch-dev port-forward svc/mana-archive-dev
+# ingress yet. Access is `kubectl -n cartarch-dev port-forward svc/cartarch-dev
 # 8000:80` until the ingress follow-up lands (then add a Tailscale annotation here or
 # a Tailscale Ingress in front). Deliberately NOT a NodePort like prod — dev has no
 # cloudflared tunnel and should not open a node port.
 spec:
   type: ClusterIP
   selector:
-    app: mana-archive-dev
+    app: cartarch-dev
   ports:
     - name: http
       port: 80

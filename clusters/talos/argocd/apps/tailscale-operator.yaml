@@ -1,6 +1,6 @@
 # Tailscale Kubernetes operator (Helm chart, PINNED). Installs the operator, the
 # tailscale.com CRDs, and the `tailscale` IngressClass that the cartarch-dev Ingress
-# (../../manifests/mana-archive-dev/ingress.yaml) selects via ingressClassName: tailscale.
+# (../../manifests/cartarch-dev/ingress.yaml) selects via ingressClassName: tailscale.
 #
 # OAuth: values leave oauth.clientId/clientSecret EMPTY on purpose — the chart then reads
 # the precreated `operator-oauth` Secret (keys client_id/client_secret), which the

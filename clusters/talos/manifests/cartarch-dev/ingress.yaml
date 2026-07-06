@@ -1,13 +1,13 @@
 # Tailscale ingress for the dev app (Phase B deferred item, completed 2026-07-04).
 # ingressClassName: tailscale hands this to the Tailscale operator, which provisions a
-# tailnet node and proxies HTTPS to the mana-archive-dev Service. tls.hosts[0] becomes the
+# tailnet node and proxies HTTPS to the cartarch-dev Service. tls.hosts[0] becomes the
 # MagicDNS name: cartarch-dev -> https://cartarch-dev.dhole-tailor.ts.net (Let's Encrypt
 # cert auto-provisioned; tailnet has MagicDNS + HTTPS enabled). Reachable only from
 # devices on Jason's tailnet — replaces the ClusterIP + port-forward access path.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: mana-archive-dev
+  name: cartarch-dev
   namespace: cartarch-dev
 spec:
   ingressClassName: tailscale
@@ -21,6 +21,6 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: mana-archive-dev
+                name: cartarch-dev
                 port:
                   number: 80
