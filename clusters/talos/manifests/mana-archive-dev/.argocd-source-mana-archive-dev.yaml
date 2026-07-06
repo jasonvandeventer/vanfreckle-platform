@@ -1,3 +1,3 @@
 kustomize:
   images:
-  - ghcr.io/jasonvandeventer/mana-archive=ghcr.io/jasonvandeventer/mana-archive:main@sha256:40c2c09db7c7a58158b59cc1a8f76429b795f22e965d4b0c3c972dd5841d22d7
+  - ghcr.io/jasonvandeventer/mana-archive=ghcr.io/jasonvandeventer/mana-archive:main@sha256:42467e05a93b386b84d675d58fd8383d33af371a332da5ff5f61bc571a669cf7
