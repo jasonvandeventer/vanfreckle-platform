@@ -1,0 +1,30 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Green/Talos cartarch app. Now synced by clusters/talos/argocd/apps/cartarch.yaml
+# and under argocd-image-updater (semver). The updater promotes via
+# .argocd-source-cartarch.yaml, which overrides the newTag below at sync time.
+#
+# The app runs IN cnpg-system (co-located with the cartarch-prod CNPG cluster), so the
+# CNPG app secret + the cartarch-prod-rw service resolve same-namespace. cnpg-system
+# already exists on the cluster, so there is no namespace.yaml here.
+#
+# NOT included (see README + the parity gaps):
+#   - Ingress       — green has no ingress controller; traffic comes via cloudflared.
+#   - ServiceMonitor — green observability is deferred; re-add when kube-prometheus-stack lands.
+#   - cartarch-prod-app — CNPG-generated app secret (same ns); not in this bundle.
+# cartarch-secrets (SESSION + RESEND) is now included below — the out-of-band apply is retired.
+resources:
+  - cartarch-secrets.sealedsecret.yaml
+  - deployment.yaml
+  - service.yaml
+  - migrate-job.yaml
+  - cronjob.yaml
+
+# newTag is now maintained-correct (matches the live prod tag) as a fallback for a
+# direct `kubectl apply -k`. The image-updater override in .argocd-source-cartarch.yaml
+# remains authoritative for ArgoCD syncs; bump this field as deliberate cleanup only.
+# See PROJECT-PORTFOLIO-INDEX Operational reference.
+images:
+  - name: ghcr.io/jasonvandeventer/cartarch
+    newTag: v4.1.18

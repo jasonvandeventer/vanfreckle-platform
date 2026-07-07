@@ -2,7 +2,7 @@
 
 The **GitOps source of truth** for the platform that runs [Cartarch](https://github.com/jasonvandeventer/cartarch) — a self-hosted Magic: The Gathering collection manager with paying users in sight. Every Kubernetes resource is declared here and reconciled by ArgoCD.
 
-> Formerly `mana-archive-platform`. Renamed to `vanfreckle-platform` (deliberately generic — the cluster already hosts more than one workload). The app it runs is **Cartarch** (formerly "Mana Archive"); some in-cluster identifiers (`mana-archive` namespace, ArgoCD Application, image path) still carry the old name pending the app-side infrastructure rename near public launch.
+> Formerly `mana-archive-platform`. Renamed to `vanfreckle-platform` (deliberately generic — the cluster already hosts more than one workload). The app it runs is **Cartarch** (formerly "Mana Archive").
 
 ---
 
@@ -17,7 +17,7 @@ The platform layer of the system, kept separate from application code:
 - Secrets (Sealed Secrets) and release automation (Argo CD Image Updater)
 - MCP servers exposing the app and the docs vault to AI tooling
 
-**App repo:** https://github.com/jasonvandeventer/cartarch (the in-cluster image path, ArgoCD Application, and namespace are still `mana-archive` — separate rename items, coordinated near launch)
+**App repo:** https://github.com/jasonvandeventer/cartarch
 **Docs/AI-context vault:** https://github.com/jasonvandeventer/cartarch-ai-context
 
 ---

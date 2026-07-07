@@ -1,4 +1,4 @@
-# cartarch (mana-archive) app on GREEN/Talos — v4.0.0 cutover deployment.
+# cartarch app on GREEN/Talos — v4.0.0 cutover deployment.
 #
 # This is a NEW deployment on a cluster the app has never run on. It is a PURE backend
 # swap vs blue: same app image (v4.0.0), single replica + Recreate (multi-replica /
@@ -9,7 +9,7 @@
 # same-namespace (no cross-namespace secret mirror needed — the earlier G1 gap is gone).
 #
 # DELTAS from blue's Deployment (k8s/apps/mana-archive/base/deployment.yaml), all
-# intentional — see clusters/talos/manifests/mana-archive/README.md:
+# intentional — see clusters/talos/manifests/cartarch/README.md:
 #   - NO run_migrations initContainer  (SQLite boot-migrations retired at gate #4;
 #     the v4 schema is built by the cutover alembic Job, not on app boot).
 #   - NO Longhorn data PVC  (PG holds durable state; /data is an emptyDir for the
@@ -17,36 +17,36 @@
 #   - + DATABASE_URL  (recomposed postgresql+psycopg:// from the CNPG app secret).
 #   - + resource requests/limits and readiness/liveness probes (blue had neither).
 #
-# 🛑 PREREQUISITE (window/secrets task — NOT satisfied by this manifest):
-#   G2  the mana-archive-secrets SealedSecret must be applied into cnpg-system
-#       (provides SESSION_SECRET_KEY + RESEND_API_KEY; app refuses to boot without
-#       RESEND in prod). Relies on the blue->green sealed-secrets key reuse.
+# Secrets: the cartarch-secrets SealedSecret is now part of this kustomization
+# (provides SESSION_SECRET_KEY + RESEND_API_KEY; app refuses to boot without
+# RESEND in prod). Sealed against the live sealed-secrets controller; the earlier
+# out-of-band G2 apply is retired.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: mana-archive
+  name: cartarch
   namespace: cnpg-system
   labels:
-    app: mana-archive
+    app: cartarch
 spec:
   replicas: 1
   strategy:
     type: Recreate # v4.0.0 stays single-replica; multi-replica/RollingUpdate is v4.0.x
   selector:
     matchLabels:
-      app: mana-archive
+      app: cartarch
   template:
     metadata:
       labels:
-        app: mana-archive
+        app: cartarch
     spec:
       # Clean SIGTERM: the on_shutdown handler stops the writer daemons before exit.
       # (On PG there is no local SQLite file to checkpoint, but daemon shutdown still
       # wants the grace period — kept at blue's value.)
       terminationGracePeriodSeconds: 60
       containers:
-        - name: mana-archive
-          image: ghcr.io/jasonvandeventer/mana-archive:v4.0.0 # the APP image, NOT -migrate
+        - name: cartarch
+          image: ghcr.io/jasonvandeventer/cartarch:v4.0.0 # the APP image, NOT -migrate
           imagePullPolicy: IfNotPresent
           # Recompose a SQLAlchemy psycopg-v3 URL from the CNPG app secret's PARTS
           # (CNPG's raw `uri` key is plain postgresql:// -> psycopg2, not installed),
@@ -76,16 +76,16 @@ spec:
                 secretKeyRef:
                   name: cartarch-prod-app
                   key: password
-            # --- app secrets: from the mana-archive-secrets SealedSecret in cnpg-system (G2) ---
+            # --- app secrets: from the cartarch-secrets SealedSecret in cnpg-system ---
             - name: SESSION_SECRET_KEY
               valueFrom:
                 secretKeyRef:
-                  name: mana-archive-secrets
+                  name: cartarch-secrets
                   key: SESSION_SECRET_KEY
             - name: RESEND_API_KEY # app refuses to boot in prod without this
               valueFrom:
                 secretKeyRef:
-                  name: mana-archive-secrets
+                  name: cartarch-secrets
                   key: RESEND_API_KEY
             # DATA_DIR is the writable scratch dir for the regenerable panels_cache
             # (emptyDir below). No SQLite lives here on PG.

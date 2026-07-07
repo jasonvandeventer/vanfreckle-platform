@@ -1,5 +1,5 @@
 # cartarch-mcp log-reader RBAC. The Role + RoleBinding live in cnpg-system (where the
-# mana-archive app pod now runs — moved from blue's mana-archive ns), granting read-only
+# cartarch app pod now runs — moved from blue's mana-archive ns), granting read-only
 # access to that pod's logs. The subject is the cartarch-mcp ServiceAccount in the mcp ns
 # (a RoleBinding may bind a subject from any namespace). Pairs with the deployment's
 # CARTARCH_POD_NAMESPACE=cnpg-system.

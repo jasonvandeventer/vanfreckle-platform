@@ -1,4 +1,4 @@
-# ImageUpdater CR for the cartarch (mana-archive) app on GREEN/Talos.
+# ImageUpdater CR for the cartarch app on GREEN/Talos.
 #
 # RESTORED 2026-06-25 (issue #31 / v4.0.16 release). The previous CR of this name
 # was applied to green IMPERATIVELY (never in the green GitOps tree) and was
@@ -6,13 +6,13 @@
 # stopped and v4.0.12–v4.0.15 were shipped via MANUAL `newTag` commits. This file
 # puts the CR under GitOps at the path the green controller app already documents
 # (clusters/talos/argocd/apps/image-updater.yaml: "the CRD is what
-# clusters/talos/argocd/image-updaters/mana-archive.yaml depends on … sync-wave 7"),
+# clusters/talos/argocd/image-updaters/cartarch.yaml depends on … sync-wave 7"),
 # so it survives. Config copied verbatim from the proven blue version
 # (k8s/argocd/image-updaters/mana-archive.yaml) — it is cluster-agnostic.
 apiVersion: argocd-image-updater.argoproj.io/v1alpha1
 kind: ImageUpdater
 metadata:
-  name: mana-archive-updater
+  name: cartarch-updater
   namespace: argocd
 spec:
   writeBackConfig:
@@ -21,12 +21,12 @@ spec:
       branch: "main"
 
   applicationRefs:
-    - namePattern: "mana-archive"
+    - namePattern: "cartarch"
       images:
-        - alias: "manaarchive"
-          imageName: "ghcr.io/jasonvandeventer/mana-archive"
+        - alias: "cartarch"
+          imageName: "ghcr.io/jasonvandeventer/cartarch"
           commonUpdateSettings:
             updateStrategy: "semver"
           manifestTargets:
             kustomize:
-              name: "ghcr.io/jasonvandeventer/mana-archive"
+              name: "ghcr.io/jasonvandeventer/cartarch"

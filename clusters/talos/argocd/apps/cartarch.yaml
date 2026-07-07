@@ -1,5 +1,5 @@
 # Green/Talos cartarch app — ArgoCD Application. Syncs the v4.0.x Deployment + Service
-# from clusters/talos/manifests/mana-archive/ into cnpg-system (co-located with the
+# from clusters/talos/manifests/cartarch/ into cnpg-system (co-located with the
 # cartarch-prod CNPG cluster; the app secret + cartarch-prod-rw service resolve same-ns).
 #
 # ⚠ AUTOMATED SYNC here DIVERGES from green's documented convention. The root-app
@@ -8,12 +8,12 @@
 #   is verified"). automated:{prune,selfHeal} is set here because it is REQUIRED for the
 #   image-updater auto-deploy goal (updater writes the new tag to git → ArgoCD must sync
 #   it). NOTE: the root-app is still manual, so a git push will NOT deploy this until a
-#   human runs the first `argocd app sync root` (then `mana-archive`); automated takes
+#   human runs the first `argocd app sync root` (then `cartarch`); automated takes
 #   over for subsequent image-updater tag bumps. See the staging note / blocker list.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: mana-archive
+  name: cartarch
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "6" # after cnpg-cartarch-prod (4) — DB + secrets up first
@@ -22,7 +22,7 @@ spec:
   source:
     repoURL: https://github.com/jasonvandeventer/vanfreckle-platform.git
     targetRevision: main
-    path: clusters/talos/manifests/mana-archive
+    path: clusters/talos/manifests/cartarch
   destination:
     server: https://kubernetes.default.svc
     namespace: cnpg-system

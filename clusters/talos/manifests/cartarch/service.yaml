@@ -1,14 +1,14 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: mana-archive
+  name: cartarch
   namespace: cnpg-system
   labels:
-    app: mana-archive
+    app: cartarch
 spec:
   type: NodePort
   selector:
-    app: mana-archive
+    app: cartarch
   ports:
     - name: http
       port: 80

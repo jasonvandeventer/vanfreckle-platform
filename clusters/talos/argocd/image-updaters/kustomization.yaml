@@ -1,6 +1,6 @@
 # ImageUpdater CRs for green/Talos. Synced by the `image-updaters` child app
 # (../apps/image-updaters.yaml, sync-wave 7 — after the image-updater controller
-# + CRD at wave 5). Added 2026-06-25 to put the mana-archive ImageUpdater CR under
+# + CRD at wave 5). Added 2026-06-25 to put the prod cartarch ImageUpdater CR under
 # GitOps; before this it was applied imperatively and a manual delete (2026-06-23)
 # silently disabled auto-deploy.
 # NAMING (near-duplicate check, index Operational follow-up, resolved 2026-07-03):
@@ -17,5 +17,5 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: argocd
 resources:
-  - mana-archive.yaml # prod CR — semver
+  - cartarch.yaml # prod CR — semver
   - cartarch-dev.yaml # dev CR — digest on :main

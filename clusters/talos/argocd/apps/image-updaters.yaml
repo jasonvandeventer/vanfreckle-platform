@@ -3,12 +3,12 @@
 # Syncs clusters/talos/argocd/image-updaters/ (the ImageUpdater CRs) into the
 # argocd namespace. sync-wave 7 so it lands AFTER the image-updater controller +
 # CRD (image-updater.yaml, wave 5). This app was MISSING on green: the controller
-# app's own comment references clusters/talos/argocd/image-updaters/mana-archive.yaml
+# app's own comment references clusters/talos/argocd/image-updaters/cartarch.yaml
 # "sync-wave 7", but no app ever synced that path, so the mana-archive ImageUpdater
 # CR was hand-applied and a 2026-06-23 manual delete silently killed auto-deploy
 # (v4.0.12–v4.0.15 then shipped via manual newTag commits). This app closes that gap.
 #
-# automated sync (like image-updater.yaml / mana-archive.yaml) — required so the CR
+# automated sync (like image-updater.yaml / cartarch.yaml) — required so the CR
 # is recreated if deleted. NOTE: the root app-of-apps is manual-sync, so this child
 # is created on the next `argocd app sync` of root.
 apiVersion: argoproj.io/v1alpha1

@@ -1,11 +1,11 @@
 # Green/Talos argocd-image-updater — installs the controller + the ImageUpdater CRD
-# (the CRD is what clusters/talos/argocd/image-updaters/mana-archive.yaml depends on, so
+# (the CRD is what clusters/talos/argocd/image-updaters/cartarch.yaml depends on, so
 # this app must sync BEFORE the CR — sync-wave 5 < 7). Mirrors blue's
 # k8s/argocd/apps/image-updater.yaml: the argo-helm chart, pinned 1.2.2, with the SAME
 # shared values file (k8s/argocd/image-updater/values.yaml — verified cluster-agnostic:
 # argocd-server.argocd.svc resolves on green too, so no green-specific values needed).
 #
-# ⚠ automated sync diverges from green's manual-first convention (see mana-archive.yaml).
+# ⚠ automated sync diverges from green's manual-first convention (see cartarch.yaml).
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

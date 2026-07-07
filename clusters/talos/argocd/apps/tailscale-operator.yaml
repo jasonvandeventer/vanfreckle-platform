@@ -8,7 +8,7 @@
 # git. Chart defaults otherwise: installCRDs=true, operatorConfig.defaultTags=
 # [tag:k8s-operator], apiServerProxyConfig disabled (we do NOT expose the K8s API server).
 #
-# ⚠ automated sync (like image-updater.yaml / mana-archive.yaml). Requires the OAuth
+# ⚠ automated sync (like image-updater.yaml / cartarch.yaml). Requires the OAuth
 # client + tailnet ACL tagOwners (tag:k8s-operator, tag:k8s) and MagicDNS + HTTPS enabled
 # on the tailnet — tailnet-policy prerequisites, not expressible in this repo.
 apiVersion: argoproj.io/v1alpha1

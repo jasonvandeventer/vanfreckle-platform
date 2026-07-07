@@ -24,7 +24,7 @@ resources:
   # cartarch app auto-deploy wiring (sync-waves 5→6→7):
   - image-updater.yaml # the controller + ImageUpdater CRD
   - image-updaters.yaml # the ImageUpdater CRs (clusters/talos/argocd/image-updaters), wave 7
-  - mana-archive.yaml # the app Deployment + Service (cnpg-system)
+  - cartarch.yaml # the app Deployment + Service (cnpg-system)
   - cartarch-dev.yaml # the DEV app Deployment + Service (cartarch-dev), wave 6
   # Tailscale operator (dev ingress), waves 3 (ns+oauth secret) → 5 (chart):
   - tailscale.yaml # namespace + operator-oauth SealedSecret

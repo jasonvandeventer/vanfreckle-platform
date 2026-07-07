@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: mana-archive-migrate
+  name: cartarch-migrate
   namespace: cnpg-system
   annotations:
     argocd.argoproj.io/hook: PreSync
@@ -20,7 +20,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: migrate
-          image: ghcr.io/jasonvandeventer/mana-archive
+          image: ghcr.io/jasonvandeventer/cartarch
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
