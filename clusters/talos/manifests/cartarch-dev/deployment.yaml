@@ -4,7 +4,7 @@
 # so the managed-role secret (cartarch-dev-app-role) + the cartarch-dev-rw service
 # both resolve same-namespace (mirrors prod's cnpg-system co-location).
 #
-# DELTAS from prod's Deployment (../mana-archive/deployment.yaml), all intentional:
+# DELTAS from prod's Deployment (../cartarch/deployment.yaml), all intentional:
 #   - namespace cartarch-dev (not cnpg-system).
 #   - image :main (mutable dev stream; the dev image-updater tracks its DIGEST and
 #     writes .argocd-source-cartarch-dev.yaml — see argocd/image-updaters).

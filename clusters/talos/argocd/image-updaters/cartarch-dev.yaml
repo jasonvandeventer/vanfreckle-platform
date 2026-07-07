@@ -8,7 +8,7 @@
 # / rollback pinning and are deliberately NOT tracked here.
 #
 # Distinct name (cartarch-dev-updater) and distinct namePattern (cartarch-dev)
-# from prod's CR (mana-archive-updater / mana-archive) so the two never cross-target.
+# from prod's CR (cartarch-updater / cartarch) so the two never cross-target.
 apiVersion: argocd-image-updater.argoproj.io/v1alpha1
 kind: ImageUpdater
 metadata:

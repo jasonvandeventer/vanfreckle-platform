@@ -1,4 +1,4 @@
-# PreSync migration Job for the DEV app — mirrors prod's ../mana-archive/migrate-job.yaml.
+# PreSync migration Job for the DEV app — mirrors prod's ../cartarch/migrate-job.yaml.
 # Runs `alembic upgrade head` against the dev DB BEFORE the dev app rolls, so the dev
 # image is exercised migrated (Phase B exit criterion 2). DATABASE_URL is recomposed in
 # the entrypoint shell — a bare Job does NOT inherit the app's env (Operational

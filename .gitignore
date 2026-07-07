@@ -54,6 +54,4 @@ cutover.sh
 # SealedSecret github-mcp-sealedsecret.yaml is). Delete after sealing.
 .github-pat
 runs.db
-clusters/talos/manifests/mana-archive/price-ingest-job.yaml
-runs.db
-clusters/talos/manifests/mana-archive/price-ingest-job.yaml
+clusters/talos/manifests/cartarch/price-ingest-job.yaml
