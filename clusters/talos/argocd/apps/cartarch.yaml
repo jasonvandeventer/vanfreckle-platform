@@ -17,6 +17,11 @@ metadata:
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "6" # after cnpg-cartarch-prod (4) — DB + secrets up first
+  # Added post-cut (the cut commit deliberately omitted this so deleting the old
+  # mana-archive app would orphan-not-cascade its workloads during the swap window).
+  # Now at parity with the other finalized apps: deletion cascades to prune workloads.
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
   source:
