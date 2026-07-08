@@ -10,6 +10,7 @@ resources:
   - namespace.yaml
   - obsidian-mcp.yaml
   - cartarch-mcp.yaml
+  - cartarch-mcp-db-sealedsecret.yaml
   - cartarch-mcp-rbac.yaml
   - github-mcp.yaml
   - github-mcp-sealedsecret.yaml

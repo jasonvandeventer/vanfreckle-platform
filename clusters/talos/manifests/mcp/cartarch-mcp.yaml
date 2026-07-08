@@ -3,9 +3,10 @@
 # Exposed via NodePort (no ingress controller on green). The ServiceAccount lives here in
 # mcp; its log-reader Role/RoleBinding live in cnpg-system (see cartarch-mcp-rbac.yaml).
 #
-# The blue `cartarch-mcp-secrets` SealedSecret is NOT replicated — verified UNUSED: the
-# deployment sets every env via plain `value:`, never secretKeyRef/envFrom.
-# Image pinned v0.1.0 — no argocd-image-updater wiring for the MCPs on green (blue used
+# The blue `cartarch-mcp-secrets` SealedSecret is NOT replicated. Read access to live
+# Cartarch data now flows through the `cartarch-mcp-db` SealedSecret (CARTARCH_DB_DSN,
+# a read-only Postgres DSN) mounted via envFrom — see cartarch-mcp-db-sealedsecret.yaml.
+# Image pinned v0.2.0 — no argocd-image-updater wiring for the MCPs on green (blue used
 # annotation-based auto-update; add an ImageUpdater CR later if auto-bump is wanted).
 ---
 apiVersion: v1
@@ -32,9 +33,13 @@ spec:
       serviceAccountName: cartarch-mcp
       containers:
         - name: cartarch-mcp
-          image: ghcr.io/jasonvandeventer/cartarch-mcp:v0.1.0
+          image: ghcr.io/jasonvandeventer/cartarch-mcp:v0.2.0
           ports:
             - containerPort: 8000
+          envFrom:
+            # CARTARCH_DB_DSN — read-only Postgres DSN (mcp_readonly @ cartarch-prod-ro).
+            - secretRef:
+                name: cartarch-mcp-db
           env:
             - name: CARTARCH_ENV
               value: prod
@@ -49,9 +54,6 @@ spec:
               value: cnpg-system # the app now lives here
             - name: CARTARCH_POD_LABEL
               value: app=cartarch
-            # Kept even though no PVC is mounted — the code handles file-not-found gracefully.
-            - name: CARTARCH_DB_PATH
-              value: /data/cartarch.db
           resources:
             requests:
               cpu: 50m
