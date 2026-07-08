@@ -1,11 +1,12 @@
-# Root app-of-apps for the NEW Talos cluster.
+# Root app-of-apps for the Talos cluster.
 # ─────────────────────────────────────────────────────────────────────────────
-# 🛑 DECLARATIVE-ONLY / NO AUTO-APPLY (by request): there is intentionally NO
-#    `syncPolicy.automated` on this root OR on any child Application. Applying this
-#    bundle (kubectl apply -k argocd/bootstrap/) only CREATES the Application
-#    objects; nothing deploys until a human runs the first `argocd app sync`.
-#    Enable `automated: {prune, selfHeal}` per-app AFTER the first manual sync is
-#    verified. Until the new cluster exists, this whole tree is inert.
+# Bootstrap complete: root now auto-syncs (`automated: {prune, selfHeal}`) so a
+# change under clusters/talos/argocd/apps/ (adding, editing, or removing a child
+# Application) reconciles on its own instead of sitting OutOfSync until a manual
+# `argocd app sync root`. Child Applications still opt into their own automation
+# individually. The manual-only posture was intentional ONLY for the initial
+# stand-up (enable automation after the first manual sync is verified) — that gate
+# has passed.
 #
 # Cluster-aware overlay: this path (clusters/talos/**) is SEPARATE from the old
 # k3s cluster's k8s/** tree, so the two ArgoCD instances never reconcile each
@@ -24,7 +25,9 @@ spec:
   destination:
     server: https://kubernetes.default.svc   # the NEW cluster's own API (does not exist yet)
     namespace: argocd
-  # No syncPolicy.automated — manual sync only. See header.
   syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
     syncOptions:
       - ApplyOutOfSyncOnly=true
