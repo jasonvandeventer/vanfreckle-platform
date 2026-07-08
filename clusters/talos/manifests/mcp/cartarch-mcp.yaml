@@ -33,7 +33,7 @@ spec:
       serviceAccountName: cartarch-mcp
       containers:
         - name: cartarch-mcp
-          image: ghcr.io/jasonvandeventer/cartarch-mcp:v0.2.3
+          image: ghcr.io/jasonvandeventer/cartarch-mcp:v0.2.4
           ports:
             - containerPort: 8000
           envFrom:
