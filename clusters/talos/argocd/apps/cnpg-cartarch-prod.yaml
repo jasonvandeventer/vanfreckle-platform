@@ -17,6 +17,7 @@ spec:
   syncPolicy:
     syncOptions:
       - ServerSideApply=true
+      - RespectIgnoreDifferences=true
   ignoreDifferences:
     - group: postgresql.cnpg.io
       kind: Cluster
