@@ -4,7 +4,7 @@ metadata:
   name: cartarch-price-ingest
   namespace: cnpg-system
 spec:
-  schedule: "0 16 * * *"
+  schedule: "0 12 * * *"  # 07:00 UTC-5 (fixed offset) = 12:00 UTC
   concurrencyPolicy: Forbid
   startingDeadlineSeconds: 3600
   successfulJobsHistoryLimit: 3

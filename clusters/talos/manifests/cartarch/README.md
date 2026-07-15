@@ -19,7 +19,7 @@ service both same-namespace, so there is **no cross-namespace secret mirror**.
 - `service.yaml` — NodePort `:80→8000` on `nodePort: 30080` (cloudflared on Unraid targets
   `10.42.1.63:30080` — this number is load-bearing)
 - `migrate-job.yaml` — `cartarch-migrate`, PreSync hook (alembic upgrade head)
-- `cronjob.yaml` — `cartarch-price-ingest`, daily 16:00 UTC
+- `cronjob.yaml` — `cartarch-price-ingest`, daily 12:00 UTC (07:00 UTC-5)
 - `cartarch-secrets.sealedsecret.yaml` — SESSION_SECRET_KEY + RESEND_API_KEY, sealed for
   `cnpg-system` (in-git; the earlier out-of-band apply is retired)
 - `kustomization.yaml` — bundles the above; `newTag` kept maintained-correct as a
