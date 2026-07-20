@@ -1,3 +1,3 @@
 kustomize:
   images:
-  - ghcr.io/jasonvandeventer/cartarch=ghcr.io/jasonvandeventer/cartarch:main@sha256:77c2745fc3a14a59455fd5a3afed07961b830e50d5bae3abf93d09e7bdf4b217
+  - ghcr.io/jasonvandeventer/cartarch=ghcr.io/jasonvandeventer/cartarch:main@sha256:cd2775d138b24a2b78871715153c4e42b349388817d24b71e19bfdeaa43297c1
