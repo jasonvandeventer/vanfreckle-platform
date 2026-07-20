@@ -24,7 +24,7 @@ The platform layer of the system, kept separate from application code:
 
 ## Architecture
 
-- **K3s** v1.34.6 — four Rocky Linux 9.7 VMs on a single Unraid host (the named single-host SPOF)
+- **Talos Linux** v1.13.3 (Kubernetes v1.35.4) — immutable, API-managed OS; a highly-available control plane (three stacked-etcd control-plane nodes) plus one worker, running as four VMs on a single Unraid host (the named single-host SPOF)
 - **Argo CD** — GitOps controller; `selfHeal` + `prune` on every Application
 - **Longhorn** — distributed block storage (default StorageClass) + NFS backup target
 - **kube-prometheus-stack** — Prometheus / Grafana / Alertmanager
@@ -98,6 +98,6 @@ No manual `kubectl apply` after initial bootstrap (ArgoCD itself, and a few seal
 
 ## Known tradeoffs
 
-- **Single-host SPOF** — all four VMs run on one Unraid host; accepted while load is small (see `roadmap.md` Resilience tier).
+- **Single-host SPOF** — the control plane is HA at the node level (three etcd members), but all four VMs still run on one Unraid host, so the host itself remains the single point of failure; accepted while load is small (see `roadmap.md` Resilience tier).
 - **Longhorn capacity wall** — VM root disks are small; storage-hungry volumes are right-sized per-volume until the disks are expanded.
 - **Off-host backups** — Longhorn snapshots currently target NFS on the same host; off-site copy is tracked, not yet done.
