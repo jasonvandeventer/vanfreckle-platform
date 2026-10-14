@@ -33,13 +33,16 @@ spec:
       serviceAccountName: cartarch-mcp
       containers:
         - name: cartarch-mcp
-          image: ghcr.io/jasonvandeventer/cartarch-mcp:v0.2.4
+          image: ghcr.io/jasonvandeventer/cartarch-mcp:v0.2.5
           ports:
             - containerPort: 8000
           envFrom:
             # CARTARCH_DB_DSN — read-only Postgres DSN (mcp_readonly @ cartarch-prod-ro).
             - secretRef:
                 name: cartarch-mcp-db
+            # Owner-scoped collection valuation token; never a browser session cookie.
+            - secretRef:
+                name: cartarch-mcp-api
           env:
             - name: CARTARCH_ENV
               value: prod
